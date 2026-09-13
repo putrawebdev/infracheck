@@ -1,0 +1,109 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+/* Leaflet Custom Dark Overrides */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background-color: #111416 !important;
+  font-family: 'Poppins', sans-serif !important;
+  z-index: 10;
+}
+
+.leaflet-control-container .leaflet-control-attribution {
+  background: rgba(17, 20, 22, 0.8) !important;
+  color: #94a3b8 !important;
+  font-size: 10px !important;
+  border-top-left-radius: 8px;
+  padding: 2px 8px !important;
+}
+
+.leaflet-control-container .leaflet-control-attribution a {
+  color: #60a5fa !important;
+}
+
+/* Hide Leaflet default zoom controls because custom high-tech UI controls are rendered */
+.leaflet-control-zoom {
+  display: none !important;
+}
+
+/* Leaflet Popup Dark Theme Styling */
+.leaflet-popup-content-wrapper {
+  background: rgba(25, 28, 30, 0.95) !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(68, 70, 82, 0.8);
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(8px);
+  padding: 4px !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(25, 28, 30, 0.95) !important;
+}
+
+.leaflet-popup-close-button {
+  color: #94a3b8 !important;
+  padding: 6px !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
+}
+
+.public-leaflet-marker,
+.admin-leaflet-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Hide scrollbar for Chrome, Safari, Edge, Opera, and Firefox */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* User GPS Location Radar Pulsing Marker */
+.user-location-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.user-location-core {
+  width: 14px;
+  height: 14px;
+  background-color: #3b82f6;
+  border: 2.5px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.9);
+  z-index: 2;
+}
+
+.user-location-ring {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  background-color: rgba(59, 130, 246, 0.35);
+  border: 1.5px solid rgba(96, 165, 250, 0.8);
+  border-radius: 50%;
+  animation: radar-pulse 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+  z-index: 1;
+}
+
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
