@@ -229,7 +229,7 @@ const NewReportPage = () => {
         if (isCloudinaryConfigured()) {
           const uploadedUrls = [];
           for (let i = 0; i < selectedImages.length; i++) {
-            setUploadStatusText(`Mengunggah foto bukti ke Cloudinary (${i + 1}/${selectedImages.length})...`);
+            setUploadStatusText(`Mengunggah foto bukti.....(${i + 1}/${selectedImages.length})...`);
             try {
               const res = await uploadToCloudinary(selectedImages[i], { folder: 'infracheck/reports' });
               uploadedUrls.push(res.url);
