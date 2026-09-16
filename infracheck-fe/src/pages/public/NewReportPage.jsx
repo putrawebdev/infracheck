@@ -250,8 +250,6 @@ const NewReportPage = () => {
           selectedImages.forEach((file) => {
             payload.append('images[]', file);
           });
-          payload.append('photo', selectedImages[0]);
-          payload.append('image', selectedImages[0]);
         }
       }
 
@@ -434,9 +432,8 @@ const NewReportPage = () => {
                 {/* Dropzone with M3 soft rounded style */}
                 <div
                   onClick={() => !isCompressing && fileInputRef.current?.click()}
-                  className={`bg-[#1a1e24] hover:bg-[#202630] border border-dashed border-[#343b49] hover:border-[#5F7ADB] rounded-2xl p-4 text-center cursor-pointer transition-colors group flex flex-col items-center justify-center gap-1.5 ${
-                    isCompressing ? 'opacity-70 pointer-events-none' : ''
-                  }`}
+                  className={`bg-[#1a1e24] hover:bg-[#202630] border border-dashed border-[#343b49] hover:border-[#5F7ADB] rounded-2xl p-4 text-center cursor-pointer transition-colors group flex flex-col items-center justify-center gap-1.5 ${isCompressing ? 'opacity-70 pointer-events-none' : ''
+                    }`}
                 >
                   <div className="w-10 h-10 rounded-full bg-[#262c37] group-hover:bg-[#354376] flex items-center justify-center text-slate-300 group-hover:text-blue-200 transition-colors">
                     {isCompressing ? (
@@ -547,48 +544,66 @@ const NewReportPage = () => {
 
         {/* SUCCESS MODAL POPUP (Material 3 Dialog Style) */}
         <Modal
+          id="success-report-modal"
           isOpen={isSuccessModalOpen}
           onClose={() => setIsSuccessModalOpen(false)}
           maxWidth="max-w-md"
         >
-          <div className="text-center space-y-4 py-2">
-            <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto">
-              <Check className="w-7 h-7 stroke-[3]" />
+          <div className="text-center space-y-4 py-1 font-['Plus_Jakarta_Sans',sans-serif]">
+            {/* Animated Glow Success Icon */}
+            <div className="relative mx-auto w-16 h-16 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-pulse" />
+              <div className="relative w-14 h-14 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-950/40">
+                <Check className="w-7 h-7 stroke-[3]" />
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans']">
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-white tracking-tight">
                 Laporan Berhasil Terkirim
               </h3>
-              <p className="text-xs text-slate-500">
-                Laporan Anda telah tercatat dan siap diverifikasi oleh petugas.
+              <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                Laporan Anda telah tercatat dan siap diverifikasi oleh tim penanganan.
               </p>
             </div>
 
-            {/* Tracking ID Ticket Box */}
-            <div className="bg-slate-100 border border-slate-200 rounded-2xl p-3.5 space-y-1.5">
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider font-['Plus_Jakarta_Sans']">
-                Kode Tiket / ID Laporan
-              </p>
-              <div className="flex items-center justify-center gap-2">
-                <span className="font-mono text-base font-bold text-[#354376] tracking-wider">
+            {/* Tracking ID Ticket Box (Material 3 Dark Tonal Container) */}
+            <div className="bg-[#14171d] border border-[#2d3340] rounded-2xl p-4 space-y-2 relative overflow-hidden text-left">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  Kode Tiket / ID Laporan
+                </span>
+                {copiedCode && (
+                  <span className="text-[10px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 animate-in fade-in">
+                    Tersalin!
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-2 bg-[#1c2028] border border-[#343b49] rounded-xl px-3.5 py-2.5">
+                <span className="font-mono text-base sm:text-lg font-bold text-[#8ca0eb] tracking-wider select-all">
                   {submittedReportData?.tracking_id || 'IC-2026-00050'}
                 </span>
                 <button
                   type="button"
                   onClick={handleCopyTrackingCode}
-                  className="p-1.5 rounded-full hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg bg-[#252c38] hover:bg-[#323a4a] active:bg-[#3d4658] text-slate-300 hover:text-white border border-[#3b4455] transition-all cursor-pointer active:scale-95 shrink-0"
                   title="Salin Kode"
                 >
-                  {copiedCode ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                  {copiedCode ? (
+                    <Check className="w-4 h-4 text-emerald-400 stroke-[2.5]" />
+                  ) : (
+                    <Copy className="w-4 h-4 text-slate-300" />
+                  )}
                 </button>
               </div>
-              <p className="text-[10px] text-slate-400">
-                Gunakan kode ini di halaman Track untuk memantau pengerjaan.
+
+              <p className="text-[10px] sm:text-[11px] text-slate-400 leading-normal">
+                Gunakan kode ini di halaman <span className="text-slate-300 font-medium">Track</span> untuk memantau pengerjaan.
               </p>
             </div>
 
-            {/* Modal Actions */}
+            {/* Modal Actions (~15% more compact) */}
             <div className="grid grid-cols-2 gap-2 pt-2">
               <button
                 type="button"
@@ -597,7 +612,7 @@ const NewReportPage = () => {
                   const code = submittedReportData?.tracking_id || 'IC-2026-00050';
                   navigate(`/report/track?id=${code}`);
                 }}
-                className="w-full py-3 rounded-full bg-[#5F7ADB] hover:bg-[#4d69d4] text-white font-semibold text-xs transition-colors cursor-pointer"
+                className="w-full py-2.5 px-3 rounded-full bg-[#5F7ADB] hover:bg-[#4d69d4] active:bg-[#3d59c4] text-white font-semibold text-[11px] tracking-wide shadow-md transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
               >
                 Lacak Laporan
               </button>
@@ -607,7 +622,7 @@ const NewReportPage = () => {
                   setIsSuccessModalOpen(false);
                   navigate('/');
                 }}
-                className="w-full py-3 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-xs transition-colors cursor-pointer"
+                className="w-full py-2.5 px-3 rounded-full bg-[#252a35] hover:bg-[#313745] active:bg-[#3c4455] text-slate-200 hover:text-white font-semibold text-[11px] tracking-wide border border-[#373e4e] transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
               >
                 Kembali ke Peta
               </button>

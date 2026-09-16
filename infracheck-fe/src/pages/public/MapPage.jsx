@@ -28,6 +28,7 @@ import Spinner from '../../components/ui/Spinner';
 import StatusBadge from '../../components/ui/StatusBadge';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
+import ImageLightbox from '../../components/ui/ImageLightbox';
 import DraggableBottomSheet from '../../components/public/DraggableBottomSheet';
 import BottomNavDock from '../../components/public/BottomNavDock';
 import LocationPermissionModal from '../../components/public/LocationPermissionModal';
@@ -169,7 +170,12 @@ const MapPage = () => {
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [photoSubmitting, setPhotoSubmitting] = useState(false);
   const [activeBottomTab, setActiveBottomTab] = useState('home'); // home | track | about
-  const [activeLightboxImg, setActiveLightboxImg] = useState(null);
+  const [lightboxState, setLightboxState] = useState({
+    isOpen: false,
+    images: [],
+    currentIndex: 0,
+    report: null,
+  });
 
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [createReportModalOpen, setCreateReportModalOpen] = useState(false);
@@ -190,7 +196,7 @@ const MapPage = () => {
       if (mapRef.current) {
         mapRef.current.flyTo([userLocation.lat, userLocation.lng], 15, { animate: true, duration: 1 });
       }
-      setToastMessage('Peta dipusatkan ke lokasi GPS Anda.');
+      setToastMessage('Lokasi Dipusatkan ke Anda');
       setTimeout(() => setToastMessage(''), 3000);
     } else {
       requestLocation(
@@ -982,7 +988,25 @@ const MapPage = () => {
               isConfirmed={confirmedReports.includes(selectedReport.id)}
               isConfirming={confirmingId === selectedReport.id}
               onAddPhotoClick={() => setPhotoModalOpen(true)}
-              onOpenLightbox={(imgUrl) => setActiveLightboxImg(imgUrl)}
+              onOpenLightbox={(imgs, idx = 0) => {
+                if (Array.isArray(imgs)) {
+                  setLightboxState({
+                    isOpen: true,
+                    images: imgs,
+                    currentIndex: idx,
+                    report: selectedReport,
+                  });
+                } else if (typeof imgs === 'string') {
+                  const fallbackList = selectedReport?.images || [imgs];
+                  const foundIdx = fallbackList.indexOf(imgs);
+                  setLightboxState({
+                    isOpen: true,
+                    images: fallbackList,
+                    currentIndex: foundIdx !== -1 ? foundIdx : 0,
+                    report: selectedReport,
+                  });
+                }
+              }}
               onOpenAuditDetail={() => setDetailModalOpen(true)}
               onResetMap={handleResetMap}
               onSearchFocus={() => {
@@ -1300,28 +1324,14 @@ const MapPage = () => {
         </form>
       </Modal>
 
-      {/* LIGHTBOX MODAL FOR IMAGES */}
-      {activeLightboxImg && (
-        <div
-          id="image-lightbox-overlay"
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
-          onClick={() => setActiveLightboxImg(null)}
-        >
-          <button
-            type="button"
-            onClick={() => setActiveLightboxImg(null)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-slate-800/80 text-white hover:bg-slate-700"
-          >
-            <Close className="w-6 h-6" />
-          </button>
-          <CloudinaryImage
-            src={activeLightboxImg}
-            alt="Preview Foto Kerusakan"
-            className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+      {/* FULL MULTI-PHOTO GALLERY LIGHTBOX MODAL */}
+      <ImageLightbox
+        isOpen={lightboxState.isOpen}
+        onClose={() => setLightboxState((prev) => ({ ...prev, isOpen: false }))}
+        images={lightboxState.images}
+        initialIndex={lightboxState.currentIndex}
+        report={lightboxState.report || selectedReport}
+      />
 
       {/* LOCATION PERMISSION POPUP MODAL ("ALLOW LOCATION FOR REPORTING") */}
       <LocationPermissionModal

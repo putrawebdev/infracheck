@@ -176,29 +176,29 @@ class ReportController extends Controller
                     $uploadedPhotoUrls[] = $schemeAndHost . '/storage/' . $path;
                 }
             }
-        }
-
-        // Check single file: photo, image, photos
-        foreach (['photo', 'image', 'photos'] as $key) {
-            if ($request->hasFile($key)) {
-                $file = $request->file($key);
-                if (is_array($file)) {
-                    foreach ($file as $f) {
-                        if ($f && $f->isValid()) {
-                            $path = ImageSecurityService::sanitizeAndStore($f, 'reports');
-                            $uploadedPhotoUrls[] = $schemeAndHost . '/storage/' . $path;
-                        }
-                    }
-                } elseif ($file && $file->isValid()) {
+        } elseif ($request->hasFile('photos')) {
+            $files = $request->file('photos');
+            if (!is_array($files)) {
+                $files = [$files];
+            }
+            foreach ($files as $file) {
+                if ($file && $file->isValid()) {
                     $path = ImageSecurityService::sanitizeAndStore($file, 'reports');
                     $uploadedPhotoUrls[] = $schemeAndHost . '/storage/' . $path;
                 }
             }
-        }
-
-        // Check string photo_url
-        if ($request->filled('photo_url') && is_string($request->photo_url) && !str_contains($request->photo_url, 'dummyimage.com')) {
-            $uploadedPhotoUrls[] = $request->photo_url;
+        } elseif ($request->hasFile('photo')) {
+            $file = $request->file('photo');
+            if ($file && $file->isValid()) {
+                $path = ImageSecurityService::sanitizeAndStore($file, 'reports');
+                $uploadedPhotoUrls[] = $schemeAndHost . '/storage/' . $path;
+            }
+        } elseif ($request->hasFile('image')) {
+            $file = $request->file('image');
+            if ($file && $file->isValid()) {
+                $path = ImageSecurityService::sanitizeAndStore($file, 'reports');
+                $uploadedPhotoUrls[] = $schemeAndHost . '/storage/' . $path;
+            }
         }
 
         // Check array of string URLs in images / photos input
@@ -207,6 +207,14 @@ class ReportController extends Controller
                 if (is_string($img) && (filter_var($img, FILTER_VALIDATE_URL) || str_starts_with($img, '/storage/'))) {
                     $uploadedPhotoUrls[] = str_starts_with($img, '/storage/') ? $schemeAndHost . $img : $img;
                 }
+            }
+        }
+
+        // Check string photo_url only if not already collected
+        if ($request->filled('photo_url') && is_string($request->photo_url) && !str_contains($request->photo_url, 'dummyimage.com')) {
+            $cleanUrl = str_starts_with($request->photo_url, '/storage/') ? $schemeAndHost . $request->photo_url : $request->photo_url;
+            if (!in_array($cleanUrl, $uploadedPhotoUrls, true)) {
+                $uploadedPhotoUrls[] = $cleanUrl;
             }
         }
 

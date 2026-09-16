@@ -253,12 +253,18 @@ const DraggableBottomSheet = ({
           {/* Quick Peek Meta Bar (Only in Peek Mode) */}
           {sheetState === 'peek' && (
             <div className="w-full max-w-3xl flex items-center justify-between text-xs text-slate-300 pt-2 pb-1 border-t border-[#292c35] mt-2.5">
-              <div className="flex items-center gap-1.5 text-slate-400 truncate max-w-[240px] sm:max-w-md">
+              <div className="flex items-center gap-1.5 text-slate-400 truncate max-w-[200px] sm:max-w-xs">
                 <MapPin className="w-3.5 h-3.5 text-red-400 shrink-0" />
                 <span className="truncate">{locationText}</span>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="text-[11px] text-blue-300 font-medium">
+              <div className="flex items-center gap-2.5 shrink-0">
+                {baseImages.length > 0 && (
+                  <span className="text-[11px] text-blue-300 font-medium flex items-center gap-1 bg-blue-950/40 px-2 py-0.5 rounded-full border border-blue-900/50">
+                    <Camera className="w-3 h-3 text-blue-400" />
+                    <span>{baseImages.length} Foto</span>
+                  </span>
+                )}
+                <span className="text-[11px] text-slate-300 font-medium">
                   {confirmationCount} konfirmasi
                 </span>
                 <span className="text-[11px] text-slate-400 flex items-center gap-1">
@@ -284,10 +290,27 @@ const DraggableBottomSheet = ({
                 id={`${id}-photo-gallery-card`}
                 className="w-full my-1"
               >
+                {/* Gallery Header */}
+                <div className="flex items-center justify-between px-1 mb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                    <Camera className="w-4 h-4 text-blue-400" />
+                    <span>Galeri Bukti ({baseImages.length} Foto)</span>
+                  </div>
+                  {baseImages.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenLightbox && onOpenLightbox(baseImages, 0)}
+                      className="text-[11px] text-blue-400 hover:text-blue-300 font-semibold cursor-pointer transition-colors"
+                    >
+                      Buka Semua
+                    </button>
+                  )}
+                </div>
+
                 {baseImages.length === 1 ? (
                   // Single Photo layout (Full width hero card)
                   <div
-                    onClick={() => onOpenLightbox && onOpenLightbox(baseImages[0])}
+                    onClick={() => onOpenLightbox && onOpenLightbox(baseImages, 0)}
                     className="h-60 sm:h-72 md:h-80 w-full rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                   >
                     <CloudinaryImage
@@ -305,7 +328,7 @@ const DraggableBottomSheet = ({
                   // Two Photos Layout (2 equal columns)
                   <div className="flex gap-2 sm:gap-2.5 h-60 sm:h-72 md:h-80 w-full">
                     <div
-                      onClick={() => onOpenLightbox && onOpenLightbox(baseImages[0])}
+                      onClick={() => onOpenLightbox && onOpenLightbox(baseImages, 0)}
                       className="flex-1 h-full rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                     >
                       <CloudinaryImage
@@ -315,7 +338,7 @@ const DraggableBottomSheet = ({
                       />
                     </div>
                     <div
-                      onClick={() => onOpenLightbox && onOpenLightbox(baseImages[1])}
+                      onClick={() => onOpenLightbox && onOpenLightbox(baseImages, 1)}
                       className="flex-1 h-full rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                     >
                       <CloudinaryImage
@@ -330,7 +353,7 @@ const DraggableBottomSheet = ({
                   <div className="flex gap-2 sm:gap-2.5 h-64 sm:h-80 md:h-96 w-full">
                     {/* Left Column: 1 Tall Primary Image */}
                     <div
-                      onClick={() => onOpenLightbox && onOpenLightbox(baseImages[0])}
+                      onClick={() => onOpenLightbox && onOpenLightbox(baseImages, 0)}
                       className="flex-[1.6] sm:flex-[1.7] h-full rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                     >
                       <CloudinaryImage
@@ -344,7 +367,7 @@ const DraggableBottomSheet = ({
                     <div className="flex-1 flex flex-col gap-2 sm:gap-2.5 h-full">
                       {/* Top Right Image */}
                       <div
-                        onClick={() => onOpenLightbox && onOpenLightbox(baseImages[1])}
+                        onClick={() => onOpenLightbox && onOpenLightbox(baseImages, 1)}
                         className="flex-1 h-1/2 rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                       >
                         <CloudinaryImage
@@ -356,7 +379,7 @@ const DraggableBottomSheet = ({
 
                       {/* Bottom Right Image */}
                       <div
-                        onClick={() => onOpenLightbox && onOpenLightbox(baseImages[2])}
+                        onClick={() => onOpenLightbox && onOpenLightbox(baseImages, 2)}
                         className="flex-1 h-1/2 rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                       >
                         <CloudinaryImage
@@ -366,7 +389,7 @@ const DraggableBottomSheet = ({
                         />
                         {baseImages.length > 3 && (
                           <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center text-white font-bold text-sm sm:text-base">
-                            +{baseImages.length - 2} Foto
+                            +{baseImages.length - 3} Foto
                           </div>
                         )}
                       </div>

@@ -208,21 +208,11 @@ const AddPhotoModal = ({
         id="add-photo-modal-sheet"
         className="w-full sm:max-w-lg bg-[#191c22] border-t sm:border border-[#3c4150] rounded-t-[32px] sm:rounded-[28px] p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] sm:max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 text-[#e1e2e5] font-['Poppins',sans-serif]"
       >
-        {/* Mobile Drag / Grab Handle */}
-        <div className="w-12 h-1.5 rounded-full bg-slate-600/70 mx-auto sm:hidden -mt-1 mb-2" />
 
         {/* Modal Header */}
         <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#2d323f]">
           <div className="flex items-center gap-3">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 rounded-full bg-[#202a4d] text-[10px] font-mono font-bold text-[#a4b3ed] border border-[#354477]">
-                  {trackingId}
-                </span>
-                <span className="text-xs text-[#c5c5d4] font-medium truncate max-w-[220px]">
-                  {headline}
-                </span>
-              </div>
               <h2 className="text-base sm:text-lg font-bold text-white tracking-tight font-['Plus_Jakarta_Sans',sans-serif]">
                 Tambah Foto Bukti Kerusakan
               </h2>
@@ -352,26 +342,6 @@ const AddPhotoModal = ({
                   </button>
                 </div>
 
-                {/* Bottom Meta on Image */}
-                <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-xs text-white">
-                  <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 max-w-[70%]">
-                    <FileImage className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                    <span className="truncate text-[11px]">
-                      {selectedFile ? selectedFile.name : 'Foto dari URL / Preset'}
-                    </span>
-                  </div>
-                  {selectedFile && (
-                    <span className={`text-[10px] backdrop-blur-md px-2 py-1 rounded-lg border ${
-                      compressionStats && compressionStats.savedPercent > 0
-                        ? 'bg-emerald-950/70 border-emerald-500/40 text-emerald-300 font-medium'
-                        : 'bg-black/60 border-white/10 text-slate-300'
-                    }`}>
-                      {compressionStats && compressionStats.savedPercent > 0
-                        ? `${formatFileSize(compressionStats.compressedSize)} (Hemat ${compressionStats.savedPercent}%)`
-                        : formatFileSize(selectedFile.size)}
-                    </span>
-                  )}
-                </div>
               </div>
 
               {/* Re-take / Change Photo Quick Buttons */}

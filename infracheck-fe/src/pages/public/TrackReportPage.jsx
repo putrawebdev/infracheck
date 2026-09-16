@@ -4,10 +4,12 @@ import PublicLayout from '../../components/layout/PublicLayout';
 import Spinner from '../../components/ui/Spinner';
 import BottomNavDock from '../../components/public/BottomNavDock';
 import CloudinaryImage from '../../components/ui/CloudinaryImage';
+import ImageLightbox from '../../components/ui/ImageLightbox';
 import { getReportByTrackingId } from '../../api/reports';
 import { getReportHeadline, getUrgencyBadge } from '../../utils/reportHelpers';
 import { formatLocalDateTime } from '../../utils/dateHelpers';
 import Search from '@mui/icons-material/Search';
+import CameraAltOutlined from '@mui/icons-material/CameraAltOutlined';
 import MapPin from '@mui/icons-material/LocationOnOutlined';
 import Layers from '@mui/icons-material/LayersOutlined';
 import Check from '@mui/icons-material/Check';
@@ -25,6 +27,11 @@ const TrackReportPage = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [trackedReport, setTrackedReport] = useState(null);
   const [searchError, setSearchError] = useState('');
+  const [lightboxState, setLightboxState] = useState({
+    isOpen: false,
+    images: [],
+    currentIndex: 0,
+  });
 
   // Initial load
   useEffect(() => {
@@ -77,11 +84,26 @@ const TrackReportPage = () => {
   const confirmationCount = Number(
     trackedReport?.confirmations ?? trackedReport?.confirmation_count ?? 1
   );
-  const photoUrl =
-    (trackedReport?.photo_url && !trackedReport.photo_url.includes('dummyimage.com'))
-      ? trackedReport.photo_url
-      : ((Array.isArray(trackedReport?.images) && trackedReport.images.find(img => img && !img.includes('dummyimage.com'))) ||
-         'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=400&q=80');
+  const reportImages = React.useMemo(() => {
+    if (!trackedReport) return [];
+    let list = [];
+    if (Array.isArray(trackedReport.images) && trackedReport.images.length > 0) {
+      list.push(...trackedReport.images);
+    }
+    if (Array.isArray(trackedReport.photos) && trackedReport.photos.length > 0) {
+      list.push(...trackedReport.photos.map(p => (typeof p === 'string' ? p : p?.photo_url)).filter(Boolean));
+    }
+    if (trackedReport.photo_url) {
+      list.push(trackedReport.photo_url);
+    }
+    const filtered = list.filter(u => typeof u === 'string' && u.trim() && !u.includes('dummyimage.com'));
+    const unique = Array.from(new Set(filtered));
+    return unique.length > 0
+      ? unique
+      : ['https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80'];
+  }, [trackedReport]);
+
+  const photoUrl = reportImages[0];
   const urgencyBadge = getUrgencyBadge(trackedReport?.urgency);
 
   const reportStatus = String(trackedReport?.status || 'new').toLowerCase();
@@ -186,14 +208,18 @@ const TrackReportPage = () => {
 
                 {/* REPORT SUMMARY CARD (Refined for Mobile Readability & MD3) */}
                 <div className="bg-[#191C1E] border border-[#343844] rounded-3xl overflow-hidden shadow-2xl transition-all">
-                  {/* Photo Preview Banner */}
-                  <div className="relative w-full h-48 sm:h-56 bg-[#121417] overflow-hidden">
+                  {/* Photo Preview Banner (Clickable with Gallery Lightbox) */}
+                  <div
+                    onClick={() => setLightboxState({ isOpen: true, images: reportImages, currentIndex: 0 })}
+                    className="relative w-full h-48 sm:h-56 bg-[#121417] overflow-hidden cursor-pointer group"
+                    title="Klik untuk melihat galeri foto penuh"
+                  >
                     <CloudinaryImage
                       src={photoUrl}
                       alt={titleText}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#191C1E] via-black/20 to-black/50" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#191C1E] via-black/20 to-black/50 pointer-events-none" />
 
                     {/* Top Floating Badges over Photo */}
                     <div className="absolute top-3.5 inset-x-3.5 flex items-center justify-between gap-2 pointer-events-none">
@@ -207,14 +233,47 @@ const TrackReportPage = () => {
                       </span>
                     </div>
 
-                    {/* Category Pill at Bottom Corner of Image */}
-                    <div className="absolute bottom-3 left-3.5">
+                    {/* Bottom Badges: Category & Gallery Count */}
+                    <div className="absolute bottom-3 inset-x-3.5 flex items-center justify-between pointer-events-none">
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#191C1E]/90 backdrop-blur-md border border-[#343844] text-xs font-medium text-[#c5c5d4] shadow-md">
                         <Layers className="w-3.5 h-3.5 text-[#8ca0eb] shrink-0" />
                         <span>{categoryText}</span>
                       </span>
+
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/75 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-white shadow-md">
+                        <CameraAltOutlined className="w-3.5 h-3.5 text-blue-400" />
+                        <span>{reportImages.length} Foto</span>
+                      </span>
                     </div>
                   </div>
+
+                  {/* Thumbnail Gallery Strip (If Multiple Images) */}
+                  {reportImages.length > 1 && (
+                    <div className="p-3 bg-[#131518] border-b border-[#2d313c] flex items-center gap-2 overflow-x-auto no-scrollbar">
+                      {reportImages.map((img, idx) => (
+                        <button
+                          key={`track-thumb-${idx}`}
+                          type="button"
+                          onClick={() => setLightboxState({ isOpen: true, images: reportImages, currentIndex: idx })}
+                          className="relative w-16 h-12 rounded-xl overflow-hidden shrink-0 border border-[#343844] hover:border-blue-400 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-sm group"
+                          title={`Buka Foto ${idx + 1}`}
+                        >
+                          <CloudinaryImage
+                            src={img}
+                            alt={`Thumbnail ${idx + 1}`}
+                            width={64}
+                            height={48}
+                            crop="fill"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+                        </button>
+                      ))}
+                      <span className="text-[11px] text-slate-400 font-medium px-2 shrink-0">
+                        Klik untuk perbesar
+                      </span>
+                    </div>
+                  )}
 
                   {/* Card Body Information */}
                   <div className="p-5 sm:p-6 space-y-4">
@@ -427,6 +486,15 @@ const TrackReportPage = () => {
             setSearchError('');
             setSearchParams({});
           }}
+        />
+
+        {/* FULL MULTI-PHOTO GALLERY LIGHTBOX MODAL */}
+        <ImageLightbox
+          isOpen={lightboxState.isOpen}
+          onClose={() => setLightboxState((prev) => ({ ...prev, isOpen: false }))}
+          images={lightboxState.images}
+          initialIndex={lightboxState.currentIndex}
+          report={trackedReport}
         />
       </div>
     </PublicLayout>
