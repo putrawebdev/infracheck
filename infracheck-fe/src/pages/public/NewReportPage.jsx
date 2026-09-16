@@ -8,6 +8,7 @@ import { useLocationContext, BEKASI_DEFAULT_COORDS } from '../../context/Locatio
 import { getCategories } from '../../api/categories';
 import { createReport } from '../../api/reports';
 import { compressImage } from '../../utils/imageCompressor';
+import { uploadToCloudinary, isCloudinaryConfigured } from '../../services/cloudinary';
 import MapPin from '@mui/icons-material/LocationOnOutlined';
 import Layers from '@mui/icons-material/LayersOutlined';
 import Check from '@mui/icons-material/Check';
@@ -44,6 +45,7 @@ const NewReportPage = () => {
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState({});
+  const [uploadStatusText, setUploadStatusText] = useState('');
 
   // Success modal state
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -199,6 +201,7 @@ const NewReportPage = () => {
 
     setFormErrors({});
     setIsSubmitting(true);
+    setUploadStatusText('');
 
     try {
       const selectedCat = categories.find((c) => String(c.id) === String(formData.category_id)) || categories[0];
@@ -223,13 +226,36 @@ const NewReportPage = () => {
       payload.append('reporter_phone', '');
 
       if (selectedImages.length > 0) {
-        selectedImages.forEach((file) => {
-          payload.append('images[]', file);
-        });
-        payload.append('photo', selectedImages[0]);
-        payload.append('image', selectedImages[0]);
+        if (isCloudinaryConfigured()) {
+          const uploadedUrls = [];
+          for (let i = 0; i < selectedImages.length; i++) {
+            setUploadStatusText(`Mengunggah foto bukti ke Cloudinary (${i + 1}/${selectedImages.length})...`);
+            try {
+              const res = await uploadToCloudinary(selectedImages[i], { folder: 'infracheck/reports' });
+              uploadedUrls.push(res.url);
+            } catch (cldErr) {
+              console.warn(`Gagal upload foto ${i + 1} ke Cloudinary, menggunakan file langsung:`, cldErr);
+              payload.append('images[]', selectedImages[i]);
+            }
+          }
+
+          if (uploadedUrls.length > 0) {
+            payload.append('photo_url', uploadedUrls[0]);
+            uploadedUrls.forEach((u) => {
+              payload.append('images[]', u);
+            });
+          }
+        } else {
+          // Fallback direct upload if Cloudinary is not configured in .env
+          selectedImages.forEach((file) => {
+            payload.append('images[]', file);
+          });
+          payload.append('photo', selectedImages[0]);
+          payload.append('image', selectedImages[0]);
+        }
       }
 
+      setUploadStatusText('Menyimpan laporan...');
       const created = await createReport(payload);
       setSubmittedReportData(created?.data || created);
       setIsSuccessModalOpen(true);
@@ -238,6 +264,7 @@ const NewReportPage = () => {
       alert('Gagal mengirim laporan. Silakan periksa koneksi dan coba lagi.');
     } finally {
       setIsSubmitting(false);
+      setUploadStatusText('');
     }
   };
 
@@ -501,7 +528,7 @@ const NewReportPage = () => {
                   {isSubmitting ? (
                     <>
                       <Spinner size="sm" color="white" />
-                      <span>Mengirim Laporan...</span>
+                      <span>{uploadStatusText || 'Mengirim Laporan...'}</span>
                     </>
                   ) : (
                     <>

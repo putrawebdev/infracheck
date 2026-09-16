@@ -64,8 +64,8 @@
                 $scheme = strtolower($parsed['scheme'] ?? '');
                 $host = strtolower($parsed['host'] ?? '');
 
-                // Hanya izinkan domain publik resmi (contoh: placeholder CDN resmi Unsplash)
-                $trustedHosts = ['images.unsplash.com'];
+                // Hanya izinkan domain publik resmi (contoh: placeholder CDN resmi Unsplash & Cloudinary)
+                $trustedHosts = ['images.unsplash.com', 'res.cloudinary.com'];
                 if ($scheme === 'https' && in_array($host, $trustedHosts, true)) {
                     return $url;
                 }

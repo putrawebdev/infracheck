@@ -331,11 +331,19 @@ export const createReport = async (reportData) => {
     latitude = Number(reportData.get('latitude')) || -6.2383;
     longitude = Number(reportData.get('longitude')) || 106.9756;
 
-    const imageFile = reportData.get('image') || reportData.get('images');
-    if (imageFile && typeof imageFile === 'object' && imageFile.name) {
-      images = [URL.createObjectURL(imageFile)];
-    } else if (typeof imageFile === 'string') {
-      images = [imageFile];
+    const photoUrlString = reportData.get('photo_url');
+    const imagesAll = reportData.getAll ? reportData.getAll('images[]').filter(Boolean) : [];
+    if (imagesAll.length > 0) {
+      images = imagesAll.map((img) => (typeof img === 'string' ? img : URL.createObjectURL(img)));
+    } else if (photoUrlString) {
+      images = [photoUrlString];
+    } else {
+      const imageFile = reportData.get('image') || reportData.get('images');
+      if (imageFile && typeof imageFile === 'object' && imageFile.name) {
+        images = [URL.createObjectURL(imageFile)];
+      } else if (typeof imageFile === 'string') {
+        images = [imageFile];
+      }
     }
   } else if (reportData && typeof reportData === 'object') {
     title = reportData.title || reportData.location || title;

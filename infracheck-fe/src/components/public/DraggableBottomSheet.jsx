@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import StatusBadge from '../ui/StatusBadge';
 import Spinner from '../ui/Spinner';
+import CloudinaryImage from '../ui/CloudinaryImage';
 import { getReportHeadline } from '../../utils/reportHelpers';
 import { formatDateSafe } from '../../utils/dateHelpers';
 
@@ -289,7 +290,7 @@ const DraggableBottomSheet = ({
                     onClick={() => onOpenLightbox && onOpenLightbox(baseImages[0])}
                     className="h-60 sm:h-72 md:h-80 w-full rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                   >
-                    <img
+                    <CloudinaryImage
                       src={baseImages[0]}
                       alt="Foto Bukti Kerusakan"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -307,7 +308,7 @@ const DraggableBottomSheet = ({
                       onClick={() => onOpenLightbox && onOpenLightbox(baseImages[0])}
                       className="flex-1 h-full rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                     >
-                      <img
+                      <CloudinaryImage
                         src={baseImages[0]}
                         alt="Foto Bukti Kerusakan 1"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -317,7 +318,7 @@ const DraggableBottomSheet = ({
                       onClick={() => onOpenLightbox && onOpenLightbox(baseImages[1])}
                       className="flex-1 h-full rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                     >
-                      <img
+                      <CloudinaryImage
                         src={baseImages[1]}
                         alt="Foto Bukti Kerusakan 2"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -332,7 +333,7 @@ const DraggableBottomSheet = ({
                       onClick={() => onOpenLightbox && onOpenLightbox(baseImages[0])}
                       className="flex-[1.6] sm:flex-[1.7] h-full rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                     >
-                      <img
+                      <CloudinaryImage
                         src={baseImages[0]}
                         alt="Foto Bukti Kerusakan 1"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -346,7 +347,7 @@ const DraggableBottomSheet = ({
                         onClick={() => onOpenLightbox && onOpenLightbox(baseImages[1])}
                         className="flex-1 h-1/2 rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                       >
-                        <img
+                        <CloudinaryImage
                           src={baseImages[1]}
                           alt="Foto Bukti Kerusakan 2"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -358,7 +359,7 @@ const DraggableBottomSheet = ({
                         onClick={() => onOpenLightbox && onOpenLightbox(baseImages[2])}
                         className="flex-1 h-1/2 rounded-2xl overflow-hidden bg-[#1f2228] border border-[#343844] cursor-pointer shadow-sm active:scale-[0.99] transition-transform relative group"
                       >
-                        <img
+                        <CloudinaryImage
                           src={baseImages[2]}
                           alt="Foto Bukti Kerusakan 3"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

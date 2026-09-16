@@ -33,6 +33,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import Spinner from '../../components/ui/Spinner';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
+import CloudinaryImage from '../../components/ui/CloudinaryImage';
 import { getReportById, generateReportPDF, deleteReport, getAllReports, normalizeReport } from '../../api/reports';
 import useAuth from '../../hooks/useAuth';
 import { formatDateSafe, formatDateTimeSafe, formatLocalDateTime } from '../../utils/dateHelpers';
@@ -484,7 +485,7 @@ const ReportDetailPage = () => {
                         className="relative h-64 sm:h-96 md:h-[420px] w-full rounded-xl overflow-hidden border border-[#444652] group cursor-pointer bg-black"
                         onClick={() => setImageModalOpen(true)}
                       >
-                        <img
+                        <CloudinaryImage
                           src={report.images[activeImageIndex]}
                           alt={`Bukti Laporan ${report.title}`}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -510,7 +511,14 @@ const ReportDetailPage = () => {
                                 : 'border-[#444652] opacity-60 hover:opacity-100'
                                 }`}
                             >
-                              <img src={imgUrl} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
+                              <CloudinaryImage
+                                src={imgUrl}
+                                alt={`Thumbnail ${index + 1}`}
+                                width={96}
+                                height={64}
+                                crop="fill"
+                                className="w-full h-full object-cover"
+                              />
                             </button>
                           ))}
                         </div>
@@ -770,7 +778,7 @@ const ReportDetailPage = () => {
         {report && report.images && report.images[activeImageIndex] && (
           <div className="space-y-4 text-center">
             <div className="max-h-[70vh] overflow-hidden rounded-xl bg-black flex items-center justify-center">
-              <img
+              <CloudinaryImage
                 src={report.images[activeImageIndex]}
                 alt="Foto Resolusi Penuh"
                 className="max-h-[70vh] w-auto object-contain"

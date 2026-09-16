@@ -35,6 +35,8 @@ import AddPhotoModal from '../../components/public/AddPhotoModal';
 import { useLocationContext, BEKASI_DEFAULT_COORDS } from '../../context/LocationContext';
 import { getAllReports, confirmReport, addReportPhoto } from '../../api/reports';
 import { getCategories } from '../../api/categories';
+import { uploadToCloudinary, isCloudinaryConfigured } from '../../services/cloudinary';
+import CloudinaryImage from '../../components/ui/CloudinaryImage';
 import {
   getReportHeadline,
   getMarkerColorConfig,
@@ -427,11 +429,29 @@ const MapPage = () => {
       let previewUrl = url || '';
 
       if (file) {
-        const formData = new FormData();
-        formData.append('photo', file);
-        formData.append('caption', caption || 'Bukti Tambahan Warga');
-        payload = formData;
-        previewUrl = URL.createObjectURL(file);
+        if (isCloudinaryConfigured()) {
+          try {
+            const cldRes = await uploadToCloudinary(file, { folder: 'infracheck/reports' });
+            payload = {
+              photo_url: cldRes.url,
+              caption: caption || 'Bukti Tambahan Warga',
+            };
+            previewUrl = cldRes.url;
+          } catch (cldErr) {
+            console.warn('Cloudinary upload fallback to direct:', cldErr);
+            const formData = new FormData();
+            formData.append('photo', file);
+            formData.append('caption', caption || 'Bukti Tambahan Warga');
+            payload = formData;
+            previewUrl = URL.createObjectURL(file);
+          }
+        } else {
+          const formData = new FormData();
+          formData.append('photo', file);
+          formData.append('caption', caption || 'Bukti Tambahan Warga');
+          payload = formData;
+          previewUrl = URL.createObjectURL(file);
+        }
       } else {
         payload = {
           photo_url: url,
@@ -440,7 +460,7 @@ const MapPage = () => {
       }
 
       const res = await addReportPhoto(selectedReport.id, payload);
-      const addedUrl = res?.photo_url || previewUrl;
+      const addedUrl = res?.photo_url || res?.data?.photo_url || previewUrl;
 
       // Update reports state
       setReports((prev) =>
@@ -1294,7 +1314,7 @@ const MapPage = () => {
           >
             <Close className="w-6 h-6" />
           </button>
-          <img
+          <CloudinaryImage
             src={activeLightboxImg}
             alt="Preview Foto Kerusakan"
             className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain"

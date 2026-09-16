@@ -96,10 +96,48 @@ class ReportController extends Controller
             'latitude' => "required|numeric|between:{$minLat},{$maxLat}",
             'longitude' => "required|numeric|between:{$minLng},{$maxLng}",
             'images' => 'nullable',
-            'images.*' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:10240',
+            'images.*' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if (is_string($value)) {
+                        if (!str_starts_with($value, '/storage/') && !filter_var($value, FILTER_VALIDATE_URL)) {
+                            $fail('Format URL foto dalam daftar gambar tidak valid.');
+                        }
+                    } elseif ($value instanceof \Illuminate\Http\UploadedFile) {
+                        $ext = strtolower($value->getClientOriginalExtension());
+                        if (!in_array($ext, ['jpeg', 'jpg', 'png', 'webp'])) {
+                            $fail('Format file gambar harus berupa jpeg, jpg, png, atau webp.');
+                        }
+                        if ($value->getSize() > 10240 * 1024) {
+                            $fail('Ukuran file gambar melebihi 10MB.');
+                        }
+                    } else {
+                        $fail('Item gambar tidak valid.');
+                    }
+                }
+            ],
             'photo' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:10240',
             'image' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:10240',
-            'photos.*' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:10240',
+            'photos.*' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if (is_string($value)) {
+                        if (!str_starts_with($value, '/storage/') && !filter_var($value, FILTER_VALIDATE_URL)) {
+                            $fail('Format URL foto dalam daftar gambar tidak valid.');
+                        }
+                    } elseif ($value instanceof \Illuminate\Http\UploadedFile) {
+                        $ext = strtolower($value->getClientOriginalExtension());
+                        if (!in_array($ext, ['jpeg', 'jpg', 'png', 'webp'])) {
+                            $fail('Format file gambar harus berupa jpeg, jpg, png, atau webp.');
+                        }
+                        if ($value->getSize() > 10240 * 1024) {
+                            $fail('Ukuran file gambar melebihi 10MB.');
+                        }
+                    } else {
+                        $fail('Item gambar tidak valid.');
+                    }
+                }
+            ],
             'photo_url' => [
                 'nullable',
                 'string',
@@ -423,7 +461,26 @@ class ReportController extends Controller
             'photo' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:10240',
             'image' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:10240',
             'images' => 'nullable',
-            'images.*' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:10240',
+            'images.*' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if (is_string($value)) {
+                        if (!str_starts_with($value, '/storage/') && !filter_var($value, FILTER_VALIDATE_URL)) {
+                            $fail('Format URL foto dalam daftar gambar tidak valid.');
+                        }
+                    } elseif ($value instanceof \Illuminate\Http\UploadedFile) {
+                        $ext = strtolower($value->getClientOriginalExtension());
+                        if (!in_array($ext, ['jpeg', 'jpg', 'png', 'webp'])) {
+                            $fail('Format file gambar harus berupa jpeg, jpg, png, atau webp.');
+                        }
+                        if ($value->getSize() > 10240 * 1024) {
+                            $fail('Ukuran file gambar melebihi 10MB.');
+                        }
+                    } else {
+                        $fail('Item gambar tidak valid.');
+                    }
+                }
+            ],
             'photo_url' => [
                 'nullable',
                 'string',

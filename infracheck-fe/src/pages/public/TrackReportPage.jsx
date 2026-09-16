@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import PublicLayout from '../../components/layout/PublicLayout';
 import Spinner from '../../components/ui/Spinner';
 import BottomNavDock from '../../components/public/BottomNavDock';
+import CloudinaryImage from '../../components/ui/CloudinaryImage';
 import { getReportByTrackingId } from '../../api/reports';
 import { getReportHeadline, getUrgencyBadge } from '../../utils/reportHelpers';
 import { formatLocalDateTime } from '../../utils/dateHelpers';
@@ -187,7 +188,7 @@ const TrackReportPage = () => {
                 <div className="bg-[#191C1E] border border-[#343844] rounded-3xl overflow-hidden shadow-2xl transition-all">
                   {/* Photo Preview Banner */}
                   <div className="relative w-full h-48 sm:h-56 bg-[#121417] overflow-hidden">
-                    <img
+                    <CloudinaryImage
                       src={photoUrl}
                       alt={titleText}
                       className="w-full h-full object-cover"
