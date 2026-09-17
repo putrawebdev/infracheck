@@ -17,6 +17,7 @@ import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
 import ErrorOutlined from '@mui/icons-material/ErrorOutlined';
 import Close from '@mui/icons-material/Close';
 import Navigation from '@mui/icons-material/Navigation';
+import LocationOnOutlined from '@mui/icons-material/LocationOnOutlined';
 import Send from '@mui/icons-material/Send';
 import Tune from '@mui/icons-material/Tune';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
@@ -95,8 +96,9 @@ const createUserLocationIcon = () => {
   });
 };
 
-const LeafletMapController = ({ selectedReport, mapInstanceRef }) => {
+const LeafletMapController = ({ selectedReport, userLocation, mapInstanceRef }) => {
   const map = useMap();
+  const hasCenteredUser = useRef(false);
 
   useEffect(() => {
     if (mapInstanceRef) {
@@ -111,6 +113,13 @@ const LeafletMapController = ({ selectedReport, mapInstanceRef }) => {
     }
   }, [selectedReport, map]);
 
+  useEffect(() => {
+    if (!selectedReport && userLocation && !hasCenteredUser.current) {
+      hasCenteredUser.current = true;
+      map.flyTo([userLocation.lat, userLocation.lng], 15, { animate: true, duration: 1.2 });
+    }
+  }, [userLocation, selectedReport, map]);
+
   return null;
 };
 
@@ -124,6 +133,8 @@ const MapPage = () => {
     hasUserLocation,
     permissionStatus,
     requestLocation,
+    refreshLocation,
+    resetLocation,
     useDefaultBekasi,
     openPrompt,
     isLocating,
@@ -190,32 +201,39 @@ const MapPage = () => {
 
   const mapRef = useRef(null);
 
-  // Handle fly to user location or request it
+  // Handle fly to user location or request fresh live GPS
   const handleFlyToMyLocation = () => {
-    if (hasUserLocation && userLocation) {
-      if (mapRef.current) {
-        mapRef.current.flyTo([userLocation.lat, userLocation.lng], 15, { animate: true, duration: 1 });
-      }
-      setToastMessage('Lokasi Dipusatkan ke Anda');
-      setTimeout(() => setToastMessage(''), 3000);
-    } else {
-      requestLocation(
-        (coords) => {
-          if (mapRef.current) {
-            mapRef.current.flyTo([coords.lat, coords.lng], 15, { animate: true, duration: 1.2 });
-          }
-          setToastMessage('Lokasi Anda terdeteksi: Peta dipusatkan.');
-          setTimeout(() => setToastMessage(''), 3500);
-        },
-        () => {
-          if (mapRef.current) {
-            mapRef.current.flyTo(defaultMapCenter, 13, { animate: true });
-          }
-          setToastMessage('Lokasi default: Kota Bekasi.');
-          setTimeout(() => setToastMessage(''), 3500);
+    setToastMessage('Mendeteksi lokasi GPS terkini...');
+    refreshLocation({
+      silent: false,
+      maxAge: 0,
+      onSuccess: (coords) => {
+        if (mapRef.current) {
+          mapRef.current.flyTo([coords.lat, coords.lng], 16, { animate: true, duration: 1.2 });
         }
-      );
-    }
+        setToastMessage('Lokasi Anda diperbarui & dipusatkan.');
+        setTimeout(() => setToastMessage(''), 3500);
+      },
+      onError: () => {
+        if (userLocation && mapRef.current) {
+          mapRef.current.flyTo([userLocation.lat, userLocation.lng], 15, { animate: true, duration: 1 });
+          setToastMessage('Memusatkan ke posisi terakhir yang tersimpan.');
+        } else {
+          if (mapRef.current) {
+            mapRef.current.flyTo(defaultMapCenter, 13, { animate: true, duration: 1 });
+          }
+          setToastMessage('GPS tidak aktif. Menampilkan default Kota Bekasi.');
+        }
+        setTimeout(() => setToastMessage(''), 3500);
+      },
+    });
+  };
+
+  // Reset stored location preference and re-open prompt
+  const handleResetLocation = () => {
+    resetLocation();
+    setToastMessage('Preferensi lokasi diatur ulang. Silakan pilih lokasi Anda.');
+    setTimeout(() => setToastMessage(''), 3500);
   };
 
   // Fetch data on load
@@ -797,7 +815,7 @@ const MapPage = () => {
             className="w-full h-full relative"
             style={{ width: '100%', height: '100%' }}
           >
-            <LeafletMapController selectedReport={selectedReport} mapInstanceRef={mapRef} />
+            <LeafletMapController selectedReport={selectedReport} userLocation={userLocation} mapInstanceRef={mapRef} />
 
             {/* Tile Layer (Satellite vs Street Mode) */}
             {mapType === 'satellite' ? (
@@ -902,10 +920,20 @@ const MapPage = () => {
               <button
                 type="button"
                 onClick={handleResetMap}
-                className="map-control-btn w-9 h-9 flex items-center justify-center text-slate-300 hover:text-white hover:bg-[#2e3239] transition-colors"
-                title="Pusatkan Ulang Lokasi"
+                className="map-control-btn w-9 h-9 flex items-center justify-center text-slate-300 hover:text-white hover:bg-[#2e3239] transition-colors border-b border-[#444652]/70"
+                title="Pusatkan Ulang Peta"
               >
                 <RestartAlt className="w-4 h-4" />
+              </button>
+              {/* Reset / Change Location Preferences Button */}
+              <button
+                id="map-reset-location-btn"
+                type="button"
+                onClick={handleResetLocation}
+                className="map-control-btn w-9 h-9 flex items-center justify-center text-slate-300 hover:text-amber-300 hover:bg-amber-950/40 transition-colors"
+                title="Atur Ulang / Ganti Preferensi Lokasi"
+              >
+                <LocationOnOutlined className="w-4 h-4 text-amber-400/90" />
               </button>
             </div>
 

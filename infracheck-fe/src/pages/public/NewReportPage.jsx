@@ -23,7 +23,7 @@ import ChevronDown from '@mui/icons-material/ExpandMore';
 
 const NewReportPage = () => {
   const navigate = useNavigate();
-  const { userLocation, hasUserLocation } = useLocationContext();
+  const { userLocation, hasUserLocation, refreshLocation } = useLocationContext();
 
   // New report form state
   const [categories, setCategories] = useState([]);
@@ -57,12 +57,21 @@ const NewReportPage = () => {
   // Sync user location if available
   useEffect(() => {
     if (hasUserLocation && userLocation) {
-      setFormData((prev) => ({
-        ...prev,
-        latitude: userLocation.lat,
-        longitude: userLocation.lng,
-        location: prev.location || `Titik GPS (${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)})`,
-      }));
+      setFormData((prev) => {
+        const isDefaultOrCoords =
+          !prev.location ||
+          prev.location.startsWith('Titik GPS (') ||
+          prev.location.includes('Kota Bekasi, Jawa Barat (Default)');
+
+        return {
+          ...prev,
+          latitude: userLocation.lat,
+          longitude: userLocation.lng,
+          location: isDefaultOrCoords
+            ? `Titik GPS (${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)})`
+            : prev.location,
+        };
+      });
     }
   }, [hasUserLocation, userLocation]);
 
@@ -139,33 +148,23 @@ const NewReportPage = () => {
     });
   };
 
-  // GPS auto-locate
+  // GPS auto-locate using shared LocationContext refresh
   const handleDetectLocation = () => {
-    if (!navigator.geolocation) {
-      alert('Browser Anda tidak mendukung deteksi lokasi GPS. Menggunakan lokasi default Bekasi.');
-      setFormData((prev) => ({
-        ...prev,
-        latitude: BEKASI_DEFAULT_COORDS[0],
-        longitude: BEKASI_DEFAULT_COORDS[1],
-        location: prev.location || 'Kota Bekasi, Jawa Barat (Default)',
-      }));
-      return;
-    }
-
     setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
+    refreshLocation({
+      silent: false,
+      maxAge: 0,
+      onSuccess: (coords) => {
         setFormData((prev) => ({
           ...prev,
-          latitude,
-          longitude,
-          location: prev.location || `Titik GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+          latitude: coords.lat,
+          longitude: coords.lng,
+          location: `Titik GPS (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`,
         }));
         setIsLocating(false);
       },
-      (err) => {
-        console.warn('Geolocation error:', err);
+      onError: (err) => {
+        alert(typeof err === 'string' ? err : 'Gagal mendeteksi lokasi GPS. Menggunakan lokasi default Bekasi.');
         setFormData((prev) => ({
           ...prev,
           latitude: BEKASI_DEFAULT_COORDS[0],
@@ -174,8 +173,7 @@ const NewReportPage = () => {
         }));
         setIsLocating(false);
       },
-      { timeout: 8000, enableHighAccuracy: true }
-    );
+    });
   };
 
   // Form Submission

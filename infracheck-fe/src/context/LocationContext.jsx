@@ -12,6 +12,8 @@ export const LocationContext = createContext({
   isLocating: false,
   locationError: null,
   requestLocation: async () => {},
+  refreshLocation: () => {},
+  resetLocation: () => {},
   useDefaultBekasi: () => {},
   openPrompt: () => {},
   closePrompt: () => {},
@@ -60,24 +62,27 @@ export const LocationProvider = ({ children }) => {
 
   const hasUserLocation = Boolean(userLocation && userLocation.lat && userLocation.lng);
 
-  // Request real device GPS location
-  const requestLocation = useCallback((onSuccess, onError) => {
+  // Refresh live device GPS location (forces maximumAge: 0 to avoid stale cached position)
+  const refreshLocation = useCallback((options = {}) => {
+    const {
+      silent = false,
+      onSuccess,
+      onError,
+      maxAge = 0,
+      timeout = 10000,
+    } = options;
+
     if (!navigator.geolocation) {
       const err = 'Browser Anda tidak mendukung deteksi lokasi GPS.';
-      setLocationError(err);
-      setPermissionStatus('denied');
-      try {
-        localStorage.setItem('infracheck_location_status', 'denied');
-      } catch (e) {
-        console.warn(e);
-      }
-      setIsPromptOpen(false);
+      if (!silent) setLocationError(err);
       onError && onError(err);
       return;
     }
 
-    setIsLocating(true);
-    setLocationError(null);
+    if (!silent) {
+      setIsLocating(true);
+      setLocationError(null);
+    }
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -85,10 +90,11 @@ export const LocationProvider = ({ children }) => {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy,
+          timestamp: Date.now(),
         };
         setUserLocation(coords);
         setPermissionStatus('granted');
-        setIsLocating(false);
+        if (!silent) setIsLocating(false);
         setIsPromptOpen(false);
 
         try {
@@ -101,35 +107,62 @@ export const LocationProvider = ({ children }) => {
         onSuccess && onSuccess(coords);
       },
       (err) => {
-        console.warn('Geolocation access denied or failed:', err);
+        console.warn('Geolocation access error:', err);
         let errorMsg = 'Izin akses lokasi tidak diberikan atau gagal terdeteksi.';
         if (err.code === 1) {
-          errorMsg = 'Akses lokasi ditolak oleh pengguna.';
+          errorMsg = 'Akses lokasi ditolak oleh browser/pengguna.';
+          setPermissionStatus('denied');
+          try {
+            localStorage.setItem('infracheck_location_status', 'denied');
+          } catch (e) {
+            console.warn(e);
+          }
         } else if (err.code === 2) {
-          errorMsg = 'Lokasi tidak dapat ditemukan.';
+          errorMsg = 'Sinyal GPS atau lokasi tidak dapat ditemukan.';
         } else if (err.code === 3) {
-          errorMsg = 'Waktu permintaan lokasi habis.';
+          errorMsg = 'Waktu permintaan lokasi GPS habis.';
         }
 
-        setLocationError(errorMsg);
-        setPermissionStatus('denied');
-        setIsLocating(false);
-        setIsPromptOpen(false);
-
-        try {
-          localStorage.setItem('infracheck_location_status', 'denied');
-        } catch (e) {
-          console.warn(e);
+        if (!silent) {
+          setLocationError(errorMsg);
+          setIsLocating(false);
         }
-
         onError && onError(errorMsg);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
+        timeout,
+        maximumAge: maxAge,
       }
     );
+  }, []);
+
+  // Request real device GPS location (interactive flow)
+  const requestLocation = useCallback(
+    (onSuccess, onError) => {
+      refreshLocation({
+        silent: false,
+        maxAge: 0,
+        onSuccess,
+        onError,
+      });
+    },
+    [refreshLocation]
+  );
+
+  // Reset stored location preference and re-open location prompt
+  const resetLocation = useCallback(() => {
+    setUserLocation(null);
+    setPermissionStatus('prompt');
+    setLocationError(null);
+    setIsLocating(false);
+    try {
+      localStorage.removeItem('infracheck_user_coords');
+      localStorage.removeItem('infracheck_location_status');
+    } catch (e) {
+      console.warn(e);
+    }
+    setIsPromptOpen(true);
   }, []);
 
   // Explicitly choose default Bekasi location
@@ -154,25 +187,24 @@ export const LocationProvider = ({ children }) => {
     setIsPromptOpen(false);
   }, []);
 
-  // Auto-refresh coordinates if permission was already granted previously
+  // Automatically refresh coordinates on mount if permission was already granted
   useEffect(() => {
-    if (permissionStatus === 'granted' && !userLocation && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const coords = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-          };
-          setUserLocation(coords);
-        },
-        () => {
-          // Keep default if GPS fails
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
+    if (typeof window === 'undefined' || !navigator.geolocation) return;
+
+    if (permissionStatus === 'granted') {
+      // Silently query fresh device GPS coordinates so returning users aren't locked to stale coords
+      refreshLocation({ silent: true, maxAge: 0 });
+    } else if (navigator.permissions && permissionStatus !== 'default' && permissionStatus !== 'denied') {
+      navigator.permissions
+        .query({ name: 'geolocation' })
+        .then((permission) => {
+          if (permission.state === 'granted') {
+            refreshLocation({ silent: true, maxAge: 0 });
+          }
+        })
+        .catch(() => {});
     }
-  }, [permissionStatus, userLocation]);
+  }, [permissionStatus, refreshLocation]);
 
   return (
     <LocationContext.Provider
@@ -185,6 +217,8 @@ export const LocationProvider = ({ children }) => {
         isLocating,
         locationError,
         requestLocation,
+        refreshLocation,
+        resetLocation,
         useDefaultBekasi,
         openPrompt,
         closePrompt,

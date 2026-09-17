@@ -84,7 +84,7 @@ const CORE_PILLARS = [
 ];
 
 const STATS = [
-  { value: '100%', label: 'Gratis & Terbuka' },
+  { value: '100%', label: 'Gratis' },
   { value: 'Realtime', label: 'Verifikasi GPS' },
   { value: 'Anonim', label: 'Privasi Terjamin' },
 ];
