@@ -931,7 +931,7 @@ const MapPage = () => {
                 type="button"
                 onClick={handleResetLocation}
                 className="map-control-btn w-9 h-9 flex items-center justify-center text-slate-300 hover:text-amber-300 hover:bg-amber-950/40 transition-colors"
-                title="Atur Ulang / Ganti Preferensi Lokasi"
+                title="Atur Ulang Lokasi"
               >
                 <LocationOnOutlined className="w-4 h-4 text-amber-400/90" />
               </button>

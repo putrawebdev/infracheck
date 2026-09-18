@@ -364,6 +364,18 @@ const AboutPage = () => {
                 </Link>
               </div>
             </section>
+
+            {/* Subtle Officer / Admin Portal Access */}
+            <div className="pt-2 pb-6 text-center">
+              <Link
+                id="about-admin-login-link"
+                to="/admin/login"
+                className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors py-1.5 px-3 rounded-full hover:bg-[#1a1f29]"
+              >
+                <ShieldOutlined className="w-3.5 h-3.5 text-slate-500" />
+                <span>Portal Petugas / Admin</span>
+              </Link>
+            </div>
           </div>
         </main>
 
