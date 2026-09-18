@@ -1,0 +1,10 @@
+# Railway ignore file
+.direnv/
+.postgres/
+vendor/
+node_modules/
+public/storage
+.env
+.env.*
+!.env.example
+*.log

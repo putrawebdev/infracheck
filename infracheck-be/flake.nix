@@ -36,6 +36,7 @@
             pkgs.phpPackages.composer
             pkgs.postgresql_16
             pkgs.nodejs_26
+            pkgs.railway
           ];
 
           shellHook = ''
