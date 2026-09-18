@@ -173,7 +173,7 @@ class ReportController extends Controller
             foreach ($files as $file) {
                 if ($file && $file->isValid()) {
                     $path = ImageSecurityService::sanitizeAndStore($file, 'reports');
-                    $uploadedPhotoUrls[] = $schemeAndHost . '/storage/' . $path;
+                    $uploadedPhotoUrls[] = '/storage/' . $path;
                 }
             }
         } elseif ($request->hasFile('photos')) {
@@ -184,20 +184,20 @@ class ReportController extends Controller
             foreach ($files as $file) {
                 if ($file && $file->isValid()) {
                     $path = ImageSecurityService::sanitizeAndStore($file, 'reports');
-                    $uploadedPhotoUrls[] = $schemeAndHost . '/storage/' . $path;
+                    $uploadedPhotoUrls[] = '/storage/' . $path;
                 }
             }
         } elseif ($request->hasFile('photo')) {
             $file = $request->file('photo');
             if ($file && $file->isValid()) {
                 $path = ImageSecurityService::sanitizeAndStore($file, 'reports');
-                $uploadedPhotoUrls[] = $schemeAndHost . '/storage/' . $path;
+                $uploadedPhotoUrls[] = '/storage/' . $path;
             }
         } elseif ($request->hasFile('image')) {
             $file = $request->file('image');
             if ($file && $file->isValid()) {
                 $path = ImageSecurityService::sanitizeAndStore($file, 'reports');
-                $uploadedPhotoUrls[] = $schemeAndHost . '/storage/' . $path;
+                $uploadedPhotoUrls[] = '/storage/' . $path;
             }
         }
 
@@ -205,7 +205,7 @@ class ReportController extends Controller
         if ($request->filled('images') && is_array($request->images)) {
             foreach ($request->images as $img) {
                 if (is_string($img) && (filter_var($img, FILTER_VALIDATE_URL) || str_starts_with($img, '/storage/'))) {
-                    $uploadedPhotoUrls[] = str_starts_with($img, '/storage/') ? $schemeAndHost . $img : $img;
+                    $uploadedPhotoUrls[] = $img;
                 }
             }
         }

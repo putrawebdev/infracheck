@@ -34,17 +34,23 @@ export const normalizeReport = (r) => {
   const title = getHeadline();
   const confirmations = Number(r.confirmation_count ?? r.confirmations ?? 1);
 
-  // Helper to format backend URL for relative storage paths
+  // Helper to format backend URL for relative storage paths and fix localhost / http mismatches
   const formatImageUrl = (url) => {
     if (!url || typeof url !== 'string') return null;
     const trimmed = url.trim();
     if (!trimmed || trimmed.includes('dummyimage.com')) return null;
+
+    const backendBase = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api').replace(/\/api\/?$/, '');
+
+    // If URL points to localhost or 127.0.0.1 /storage/, re-point to actual production backend base
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/storage\//i.test(trimmed)) {
+      return trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/storage\//i, `${backendBase}/storage/`);
+    }
+
     if (trimmed.startsWith('/storage/')) {
-      const backendBase = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api').replace(/\/api\/?$/, '');
       return `${backendBase}${trimmed}`;
     }
     if (trimmed.startsWith('storage/')) {
-      const backendBase = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api').replace(/\/api\/?$/, '');
       return `${backendBase}/${trimmed}`;
     }
     return trimmed;

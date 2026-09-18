@@ -20,13 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Pasang SecurityHeadersMiddleware secara global ke seluruh response HTTP
         $middleware->append(\App\Http\Middleware\SecurityHeadersMiddleware::class);
 
-        // Konfigurasi trusted proxies untuk mencegah pemalsuan header IP (X-Forwarded-For)
-        $middleware->trustProxies(at: [
-            '127.0.0.1',
-            '10.0.0.0/8',
-            '172.16.0.0/12',
-            '192.168.0.0/16',
-        ]);
+        // Konfigurasi trusted proxies untuk Railway/Cloud reverse proxy (HTTPS & Forwarded headers)
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
