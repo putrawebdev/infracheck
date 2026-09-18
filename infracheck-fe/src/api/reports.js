@@ -204,15 +204,28 @@ export const generateReportPDF = async (id) => {
 
     return response.data;
   } catch (error) {
-    if (error.response?.data instanceof Blob && error.response.data.type === 'application/json') {
+    if (error.response?.data instanceof Blob) {
       try {
         const text = await error.response.data.text();
-        const json = JSON.parse(text);
-        if (json.message) {
-          throw new Error(json.message);
+        try {
+          const json = JSON.parse(text);
+          if (json.message) {
+            throw new Error(json.message);
+          }
+        } catch (jsonErr) {
+          if (jsonErr.message && !jsonErr.message.includes('JSON')) {
+            throw jsonErr;
+          }
+        }
+
+        if (text.includes('<title>')) {
+          const titleMatch = text.match(/<title>(.*?)<\/title>/i);
+          if (titleMatch && titleMatch[1]) {
+            throw new Error(`Server error: ${titleMatch[1]}`);
+          }
         }
       } catch (parseErr) {
-        if (parseErr.message && !parseErr.message.includes('JSON')) {
+        if (parseErr.message) {
           throw parseErr;
         }
       }

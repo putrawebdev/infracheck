@@ -341,22 +341,36 @@ class ReportController extends Controller
         ], 200);
     }
 
-    // Fungsi untuk mengambil detail 1 laporan berdasarkan ID (untuk Admin Detail Report)
-    public function show(Request $request, $id)
+    /**
+     * Helper to safely find an active report by numeric ID or string tracking_id.
+     * Prevents PostgreSQL fatal errors: SQLSTATE[22P02]: invalid input syntax for type bigint.
+     */
+    private function findReportSafely($id)
     {
-        $query = DB::table('reports')->where('id', $id);
+        if (empty($id)) {
+            return null;
+        }
+
+        $query = DB::table('reports');
         if (Schema::hasColumn('reports', 'deleted_at')) {
             $query->whereNull('deleted_at');
         }
-        $report = $query->first();
 
-        if (!$report) {
-            $query2 = DB::table('reports')->where('tracking_id', $id);
-            if (Schema::hasColumn('reports', 'deleted_at')) {
-                $query2->whereNull('deleted_at');
+        if (is_numeric($id)) {
+            $report = (clone $query)->where('id', (int) $id)->first();
+            if ($report) {
+                return $report;
             }
-            $report = $query2->first();
         }
+
+        // Search by tracking_id
+        return (clone $query)->where('tracking_id', (string) $id)->first();
+    }
+
+    // Fungsi untuk mengambil detail 1 laporan berdasarkan ID (untuk Admin Detail Report)
+    public function show(Request $request, $id)
+    {
+        $report = $this->findReportSafely($id);
 
         if (!$report) {
             return response()->json([
@@ -408,15 +422,15 @@ class ReportController extends Controller
         $userToken = $request->user_token;
         $ipAddress = $request->ip();
 
-        // 2. Cek apakah laporan dengan ID tersebut benar-benar ada
-        $report = DB::table('reports')->where('id', $id)->first();
+        // 2. Cek apakah laporan dengan ID atau tracking_id tersebut benar-benar ada
+        $report = $this->findReportSafely($id);
         if (!$report) {
             return response()->json(['message' => 'Laporan tidak ditemukan.'], 404);
         }
 
         // 3. Cek apakah token ini sudah pernah konfirmasi laporan ini sebelumnya (Mencegah Spam Client)
         $existingConfirmation = DB::table('report_confirmations')
-            ->where('report_id', $id)
+            ->where('report_id', $report->id)
             ->where('user_token', $userToken)
             ->first();
 
@@ -429,7 +443,7 @@ class ReportController extends Controller
 
         // 4. Pembatasan Anti-Sybil Flood: Cek apakah IP jaringan ini sudah pernah konfirmasi dalam 24 jam terakhir
         $recentIpConfirmation = DB::table('report_confirmations')
-            ->where('report_id', $id)
+            ->where('report_id', $report->id)
             ->where('ip_address', $ipAddress)
             ->where('created_at', '>=', now()->subHours(24))
             ->first();
@@ -443,7 +457,7 @@ class ReportController extends Controller
 
         // 4. Simpan data konfirmasi ke tabel report_confirmations
         DB::table('report_confirmations')->insert([
-            'report_id' => $id,
+            'report_id' => $report->id,
             'user_token' => $userToken,
             'ip_address' => $ipAddress,
             'created_at' => now(),
@@ -451,7 +465,7 @@ class ReportController extends Controller
         ]);
 
         // 5. Otomatis tambahkan +1 ke kolom confirmation_count di tabel reports
-        DB::table('reports')->where('id', $id)->increment('confirmation_count');
+        DB::table('reports')->where('id', $report->id)->increment('confirmation_count');
 
         return response()->json([
             'success' => true,
@@ -502,7 +516,7 @@ class ReportController extends Controller
         ]);
 
         // 2. Cek apakah laporan utamanya ada
-        $report = DB::table('reports')->where('id', $id)->first();
+        $report = $this->findReportSafely($id);
         if (!$report) {
             return response()->json(['message' => 'Laporan tidak ditemukan.'], 404);
         }
@@ -537,7 +551,7 @@ class ReportController extends Controller
 
         // 3. Simpan foto kontribusi ke tabel report_photos
         DB::table('report_photos')->insert([
-            'report_id' => $id,
+            'report_id' => $report->id,
             'user_token' => $request->user_token,
             'photo_url' => $photoUrl,
             'caption' => $request->caption ?? 'Bukti Tambahan Warga',
@@ -547,13 +561,13 @@ class ReportController extends Controller
 
         // If report's main photo was a dummy placeholder, update it with this real photo
         if (empty($report->photo_url) || str_contains($report->photo_url, 'dummyimage.com')) {
-            DB::table('reports')->where('id', $id)->update([
+            DB::table('reports')->where('id', $report->id)->update([
                 'photo_url' => $photoUrl,
                 'updated_at' => now(),
             ]);
         }
 
-        $allPhotos = DB::table('report_photos')->where('report_id', $id)->get();
+        $allPhotos = DB::table('report_photos')->where('report_id', $report->id)->get();
 
         return response()->json([
             'success' => true,
@@ -572,13 +586,13 @@ class ReportController extends Controller
         ]);
 
         // 2. Cek apakah laporan ada
-        $report = DB::table('reports')->where('id', $id)->first();
+        $report = $this->findReportSafely($id);
         if (!$report) {
             return response()->json(['message' => 'Laporan tidak ditemukan.'], 404);
         }
 
         // 3. Update status di database
-        DB::table('reports')->where('id', $id)->update([
+        DB::table('reports')->where('id', $report->id)->update([
             'status' => $request->status,
             'updated_at' => now(),
         ]);
@@ -615,7 +629,7 @@ class ReportController extends Controller
     
     /**
      * Helper to safely convert an image (local storage file, WebP, or remote Cloudinary/Unsplash)
-     * into a base64 JPEG/PNG data URI so DomPDF can render it safely and reliably.
+     * into a compact base64 JPEG data URI so DomPDF can render it safely without out-of-memory or CDN block issues.
      */
     private function convertImageToBase64DataUri(?string $url): ?string
     {
@@ -655,11 +669,24 @@ class ReportController extends Controller
                 $host = strtolower($parsed['host'] ?? '');
 
                 if ($scheme === 'https' && !in_array($host, ['localhost', '127.0.0.1'], true)) {
-                    $ctx = stream_context_create([
-                        'http' => ['timeout' => 5, 'ignore_errors' => true],
-                        'ssl'  => ['verify_peer' => false, 'verify_peer_name' => false],
-                    ]);
-                    $rawContent = @file_get_contents($url, false, $ctx);
+                    try {
+                        $response = \Illuminate\Support\Facades\Http::timeout(6)
+                            ->withHeaders(['User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) InfraCheck/1.0'])
+                            ->get($url);
+                        if ($response->successful()) {
+                            $rawContent = $response->body();
+                        }
+                    } catch (\Throwable) {
+                        $ctx = stream_context_create([
+                            'http' => [
+                                'timeout' => 5,
+                                'ignore_errors' => true,
+                                'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) InfraCheck/1.0\r\n"
+                            ],
+                            'ssl'  => ['verify_peer' => false, 'verify_peer_name' => false],
+                        ]);
+                        $rawContent = @file_get_contents($url, false, $ctx);
+                    }
                     $extension = strtolower(pathinfo($parsed['path'] ?? '', PATHINFO_EXTENSION));
                 }
             }
@@ -668,50 +695,45 @@ class ReportController extends Controller
                 return null;
             }
 
-            // Determine mime type reliably
-            $mimeType = null;
-            if (class_exists('\finfo')) {
-                $finfo = new \finfo(FILEINFO_MIME_TYPE);
-                $mimeType = $finfo->buffer($rawContent) ?: null;
-            }
-
-            // DomPDF natively does NOT support WebP image format. Convert WebP to JPEG via GD.
-            $isWebP = ($mimeType === 'image/webp') || ($extension === 'webp') || str_starts_with($rawContent, 'RIFF');
-            if ($isWebP) {
-                if (function_exists('imagecreatefromstring') && function_exists('imagejpeg')) {
-                    $gdImage = @imagecreatefromstring($rawContent);
-                    if ($gdImage) {
-                        ob_start();
-                        imagejpeg($gdImage, null, 85);
-                        $jpegContent = ob_get_clean();
-                        imagedestroy($gdImage);
-                        if (!empty($jpegContent)) {
-                            return 'data:image/jpeg;base64,' . base64_encode($jpegContent);
-                        }
-                    }
-                }
-            }
-
-            // If standard supported image (JPEG, PNG, GIF)
-            if ($mimeType && in_array($mimeType, ['image/jpeg', 'image/png', 'image/gif'], true)) {
-                return 'data:' . $mimeType . ';base64,' . base64_encode($rawContent);
-            }
-
-            // Fallback: convert other formats to JPEG via GD
+            // Downscale and convert to JPEG base64 via GD to prevent DomPDF memory exhaustion
             if (function_exists('imagecreatefromstring') && function_exists('imagejpeg')) {
                 $gdImage = @imagecreatefromstring($rawContent);
                 if ($gdImage) {
+                    $origWidth = imagesx($gdImage);
+                    $origHeight = imagesy($gdImage);
+                    $maxWidth = 700;
+
+                    if ($origWidth > $maxWidth && $origHeight > 0) {
+                        $newWidth = $maxWidth;
+                        $newHeight = (int) ($origHeight * ($maxWidth / $origWidth));
+                        $resized = imagecreatetruecolor($newWidth, $newHeight);
+                        imagecopyresampled($resized, $gdImage, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
+                        imagedestroy($gdImage);
+                        $gdImage = $resized;
+                    }
+
                     ob_start();
-                    imagejpeg($gdImage, null, 85);
+                    imagejpeg($gdImage, null, 80);
                     $jpegContent = ob_get_clean();
                     imagedestroy($gdImage);
+
                     if (!empty($jpegContent)) {
                         return 'data:image/jpeg;base64,' . base64_encode($jpegContent);
                     }
                 }
             }
 
-            return 'data:image/jpeg;base64,' . base64_encode($rawContent);
+            // Fallback for standard supported image types if GD is unavailable
+            $mimeType = null;
+            if (class_exists('\finfo')) {
+                $finfo = new \finfo(FILEINFO_MIME_TYPE);
+                $mimeType = $finfo->buffer($rawContent) ?: null;
+            }
+            if ($mimeType && in_array($mimeType, ['image/jpeg', 'image/png', 'image/gif'], true)) {
+                return 'data:' . $mimeType . ';base64,' . base64_encode($rawContent);
+            }
+
+            return null;
         } catch (\Throwable $e) {
             Log::warning('PDF image conversion failed: ' . $e->getMessage());
             return null;
@@ -722,14 +744,17 @@ class ReportController extends Controller
     public function generatePdf($id)
     {
         try {
-            // 1. Ambil data laporan utama berdasarkan ID atau tracking_id
-            $report = DB::table('reports')->where('id', $id)->first();
-            if (!$report) {
-                $report = DB::table('reports')->where('tracking_id', $id)->first();
-            }
+            @ini_set('memory_limit', '512M');
+            @set_time_limit(60);
+
+            // 1. Ambil data laporan utama berdasarkan ID atau tracking_id secara aman (Anti-Type Error Postgres)
+            $report = $this->findReportSafely($id);
             if (!$report) {
                 // Fallback jika id adalah string umum seperti 'audit-summary'
-                $report = DB::table('reports')->orderBy('created_at', 'desc')->first();
+                $report = DB::table('reports')
+                    ->when(Schema::hasColumn('reports', 'deleted_at'), fn($q) => $q->whereNull('deleted_at'))
+                    ->orderBy('created_at', 'desc')
+                    ->first();
             }
             if (!$report) {
                 return response()->json(['message' => 'Laporan tidak ditemukan.'], 404);
@@ -763,18 +788,34 @@ class ReportController extends Controller
                 'photos' => $sanitizedPhotos,
             ];
 
-            // 5. Load tampilan PDF
+            // 5. Pastikan folder cache font DomPDF ada dan dapat ditulis
+            $fontDir = storage_path('fonts');
+            if (!file_exists($fontDir)) {
+                @mkdir($fontDir, 0755, true);
+            }
+
+            // 6. Load tampilan PDF dengan opsi isolasi & direktori font aman
             $pdf = Pdf::loadView('pdf.audit-report', $data)
                 ->setPaper('a4', 'portrait')
-                ->setOption('isRemoteEnabled', true)
-                ->setOption('isPhpEnabled', false)
-                ->setOption('isJavascriptEnabled', false);
+                ->setOptions([
+                    'isRemoteEnabled' => true,
+                    'isPhpEnabled' => false,
+                    'isJavascriptEnabled' => false,
+                    'fontDir' => $fontDir,
+                    'fontCache' => $fontDir,
+                    'tempDir' => sys_get_temp_dir(),
+                    'chroot' => array_filter([
+                        realpath(base_path('public')),
+                        realpath(storage_path('app/public')),
+                        realpath(storage_path()),
+                    ]),
+                ]);
 
-            // 6. Sanitasi nama file output untuk mencegah Header Injection
+            // 7. Sanitasi nama file output untuk mencegah Header Injection
             $safeTrackingId = preg_replace('/[^A-Za-z0-9_-]/', '', $report->tracking_id);
             $filename = 'Audit-Report-' . ($safeTrackingId ?: $report->id) . '.pdf';
 
-            // 7. Download file PDF dengan nama aman
+            // 8. Download file PDF dengan nama aman
             return $pdf->download($filename);
         } catch (\Throwable $e) {
             Log::error('PDF generation error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
@@ -788,10 +829,7 @@ class ReportController extends Controller
     // Fungsi untuk admin menghapus laporan yang statusnya sudah Selesai (Done)
     public function destroy(Request $request, $id)
     {
-        $report = DB::table('reports')->where('id', $id)->first();
-        if (!$report) {
-            $report = DB::table('reports')->where('tracking_id', $id)->first();
-        }
+        $report = $this->findReportSafely($id);
 
         if (!$report) {
             return response()->json([

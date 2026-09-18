@@ -443,9 +443,6 @@ const NewReportPage = () => {
                   <p className="text-xs font-medium text-slate-200">
                     {isCompressing ? 'Mengompresi foto untuk hemat kuota...' : 'Ketuk untuk mengunggah foto'}
                   </p>
-                  <p className="text-[10px] text-slate-400">
-                    Otomatis dioptimasi ke WebP berkualitas tinggi
-                  </p>
                 </div>
 
                 {/* Previews Reel */}
