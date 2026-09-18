@@ -147,7 +147,7 @@ const ReportDetailPage = () => {
       }
     } catch (err) {
       console.error('PDF generation error:', err);
-      alert('Gagal mengunduh dokumen PDF audit.');
+      alert(err?.message || 'Gagal mengunduh dokumen PDF audit.');
     } finally {
       setPdfGenerating(false);
     }

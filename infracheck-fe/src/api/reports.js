@@ -190,11 +190,35 @@ export const generateReportPDF = async (id) => {
     const response = await api.get(`/reports/${id}/pdf`, {
       responseType: 'blob',
     });
+
+    // Handle case where server responds with application/json inside a blob
+    if (response?.data instanceof Blob && response.data.type === 'application/json') {
+      const text = await response.data.text();
+      let msg = 'Gagal mengunduh dokumen PDF audit dari server.';
+      try {
+        const json = JSON.parse(text);
+        if (json.message) msg = json.message;
+      } catch {}
+      throw new Error(msg);
+    }
+
     return response.data;
   } catch (error) {
-    console.warn('API generateReportPDF fallback, creating mock PDF blob:', error?.message || error);
-    const mockContent = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000052 00000 n\n0000000101 00000 n\ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF`;
-    return new Blob([mockContent], { type: 'application/pdf' });
+    if (error.response?.data instanceof Blob && error.response.data.type === 'application/json') {
+      try {
+        const text = await error.response.data.text();
+        const json = JSON.parse(text);
+        if (json.message) {
+          throw new Error(json.message);
+        }
+      } catch (parseErr) {
+        if (parseErr.message && !parseErr.message.includes('JSON')) {
+          throw parseErr;
+        }
+      }
+    }
+    console.error('API generateReportPDF error:', error?.message || error);
+    throw error;
   }
 };
 

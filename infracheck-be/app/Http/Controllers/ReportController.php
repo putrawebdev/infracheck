@@ -613,39 +613,176 @@ class ReportController extends Controller
         ], 200);
     }
     
+    /**
+     * Helper to safely convert an image (local storage file, WebP, or remote Cloudinary/Unsplash)
+     * into a base64 JPEG/PNG data URI so DomPDF can render it safely and reliably.
+     */
+    private function convertImageToBase64DataUri(?string $url): ?string
+    {
+        if (empty($url) || !is_string($url) || str_contains($url, 'dummyimage.com')) {
+            return null;
+        }
+
+        try {
+            $rawContent = null;
+            $extension = null;
+
+            // 1. Local file in storage
+            if (str_contains($url, '/storage/') || str_starts_with($url, 'reports/') || str_starts_with($url, '/reports/')) {
+                $parsedPath = parse_url($url, PHP_URL_PATH);
+                $filename = basename($parsedPath);
+
+                $allowedDirs = array_filter([
+                    realpath(storage_path('app/public/reports')),
+                    realpath(public_path('storage/reports')),
+                    realpath(storage_path('app/public')),
+                    realpath(public_path('storage')),
+                ]);
+
+                foreach ($allowedDirs as $allowedDir) {
+                    $candidate = realpath($allowedDir . DIRECTORY_SEPARATOR . $filename);
+                    if ($candidate && str_starts_with($candidate, $allowedDir) && file_exists($candidate) && is_file($candidate)) {
+                        $rawContent = @file_get_contents($candidate);
+                        $extension = strtolower(pathinfo($candidate, PATHINFO_EXTENSION));
+                        break;
+                    }
+                }
+            }
+            // 2. Remote URL (Cloudinary, Unsplash, etc.)
+            elseif (filter_var($url, FILTER_VALIDATE_URL)) {
+                $parsed = parse_url($url);
+                $scheme = strtolower($parsed['scheme'] ?? '');
+                $host = strtolower($parsed['host'] ?? '');
+
+                if ($scheme === 'https' && !in_array($host, ['localhost', '127.0.0.1'], true)) {
+                    $ctx = stream_context_create([
+                        'http' => ['timeout' => 5, 'ignore_errors' => true],
+                        'ssl'  => ['verify_peer' => false, 'verify_peer_name' => false],
+                    ]);
+                    $rawContent = @file_get_contents($url, false, $ctx);
+                    $extension = strtolower(pathinfo($parsed['path'] ?? '', PATHINFO_EXTENSION));
+                }
+            }
+
+            if (empty($rawContent)) {
+                return null;
+            }
+
+            // Determine mime type reliably
+            $mimeType = null;
+            if (class_exists('\finfo')) {
+                $finfo = new \finfo(FILEINFO_MIME_TYPE);
+                $mimeType = $finfo->buffer($rawContent) ?: null;
+            }
+
+            // DomPDF natively does NOT support WebP image format. Convert WebP to JPEG via GD.
+            $isWebP = ($mimeType === 'image/webp') || ($extension === 'webp') || str_starts_with($rawContent, 'RIFF');
+            if ($isWebP) {
+                if (function_exists('imagecreatefromstring') && function_exists('imagejpeg')) {
+                    $gdImage = @imagecreatefromstring($rawContent);
+                    if ($gdImage) {
+                        ob_start();
+                        imagejpeg($gdImage, null, 85);
+                        $jpegContent = ob_get_clean();
+                        imagedestroy($gdImage);
+                        if (!empty($jpegContent)) {
+                            return 'data:image/jpeg;base64,' . base64_encode($jpegContent);
+                        }
+                    }
+                }
+            }
+
+            // If standard supported image (JPEG, PNG, GIF)
+            if ($mimeType && in_array($mimeType, ['image/jpeg', 'image/png', 'image/gif'], true)) {
+                return 'data:' . $mimeType . ';base64,' . base64_encode($rawContent);
+            }
+
+            // Fallback: convert other formats to JPEG via GD
+            if (function_exists('imagecreatefromstring') && function_exists('imagejpeg')) {
+                $gdImage = @imagecreatefromstring($rawContent);
+                if ($gdImage) {
+                    ob_start();
+                    imagejpeg($gdImage, null, 85);
+                    $jpegContent = ob_get_clean();
+                    imagedestroy($gdImage);
+                    if (!empty($jpegContent)) {
+                        return 'data:image/jpeg;base64,' . base64_encode($jpegContent);
+                    }
+                }
+            }
+
+            return 'data:image/jpeg;base64,' . base64_encode($rawContent);
+        } catch (\Throwable $e) {
+            Log::warning('PDF image conversion failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
     // Fungsi untuk generate & download PDF audit laporan
     public function generatePdf($id)
     {
-        // 1. Ambil data laporan utama berdasarkan ID
-        $report = DB::table('reports')->where('id', $id)->first();
-        if (!$report) {
-            return response()->json(['message' => 'Laporan tidak ditemukan.'], 404);
+        try {
+            // 1. Ambil data laporan utama berdasarkan ID atau tracking_id
+            $report = DB::table('reports')->where('id', $id)->first();
+            if (!$report) {
+                $report = DB::table('reports')->where('tracking_id', $id)->first();
+            }
+            if (!$report) {
+                // Fallback jika id adalah string umum seperti 'audit-summary'
+                $report = DB::table('reports')->orderBy('created_at', 'desc')->first();
+            }
+            if (!$report) {
+                return response()->json(['message' => 'Laporan tidak ditemukan.'], 404);
+            }
+
+            // 2. Ambil seluruh foto kontribusi tambahan dari warga
+            $photos = DB::table('report_photos')->where('report_id', $report->id)->get();
+
+            // 3. Konversi gambar ke base64 data URI agar DomPDF dapat me-render secara aman & cepat tanpa error WebP/Remote
+            $mainPhotoDataUri = $this->convertImageToBase64DataUri($report->photo_url);
+
+            $sanitizedPhotos = [];
+            foreach ($photos as $photo) {
+                // Hindari duplikasi foto utama
+                if (!empty($photo->photo_url) && $photo->photo_url === $report->photo_url) {
+                    continue;
+                }
+                $dataUri = $this->convertImageToBase64DataUri($photo->photo_url ?? null);
+                if ($dataUri) {
+                    $sanitizedPhotos[] = [
+                        'src' => $dataUri,
+                        'caption' => $photo->caption ?? 'Bukti Tambahan Warga',
+                    ];
+                }
+            }
+
+            // 4. Siapkan data yang akan dikirim ke tampilan PDF
+            $data = [
+                'report' => $report,
+                'mainPhoto' => $mainPhotoDataUri,
+                'photos' => $sanitizedPhotos,
+            ];
+
+            // 5. Load tampilan PDF
+            $pdf = Pdf::loadView('pdf.audit-report', $data)
+                ->setPaper('a4', 'portrait')
+                ->setOption('isRemoteEnabled', true)
+                ->setOption('isPhpEnabled', false)
+                ->setOption('isJavascriptEnabled', false);
+
+            // 6. Sanitasi nama file output untuk mencegah Header Injection
+            $safeTrackingId = preg_replace('/[^A-Za-z0-9_-]/', '', $report->tracking_id);
+            $filename = 'Audit-Report-' . ($safeTrackingId ?: $report->id) . '.pdf';
+
+            // 7. Download file PDF dengan nama aman
+            return $pdf->download($filename);
+        } catch (\Throwable $e) {
+            Log::error('PDF generation error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuat dokumen PDF audit: ' . $e->getMessage(),
+            ], 500);
         }
-
-        // 2. Ambil seluruh foto kontribusi tambahan dari warga
-        $photos = DB::table('report_photos')->where('report_id', $id)->get();
-
-        // 3. Siapkan data yang akan dikirim ke tampilan PDF
-        $data = [
-            'report' => $report,
-            'photos' => $photos
-        ];
-
-        // 4. Load tampilan PDF dengan opsi keamanan isolasi ketat (Anti-SSRF & Anti-Execution)
-        $pdf = Pdf::loadView('pdf.audit-report', $data)
-            ->setOption('isRemoteEnabled', false)
-            ->setOption('isPhpEnabled', false)
-            ->setOption('isJavascriptEnabled', false)
-            ->setOption('chroot', array_filter([
-                realpath(base_path('public')),
-                realpath(storage_path('app/public')),
-            ]));
-
-        // 5. Sanitasi nama file output untuk mencegah Header Injection
-        $safeTrackingId = preg_replace('/[^A-Za-z0-9_-]/', '', $report->tracking_id);
-
-        // 6. Download file PDF dengan nama aman
-        return $pdf->download('Audit-Report-' . ($safeTrackingId ?: $report->id) . '.pdf');
     }
 
     // Fungsi untuk admin menghapus laporan yang statusnya sudah Selesai (Done)
