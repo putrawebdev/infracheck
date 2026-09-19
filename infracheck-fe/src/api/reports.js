@@ -65,6 +65,8 @@ export const normalizeReport = (r) => {
     ? r.images.map(formatImageUrl).filter(Boolean)
     : [];
 
+  const singlePhoto = formatImageUrl(r.photo_url);
+
   let combinedImages = [
     ...rawImages,
     ...photoUrlsFromPhotos,
