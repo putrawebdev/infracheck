@@ -174,15 +174,23 @@ const ReportDetailPage = () => {
 
   // Status Updater Callback
   const handleStatusUpdated = (newStatusData) => {
-    const updatedStatus = newStatusData.status || newStatusData;
-    const note = newStatusData.note || 'Status diperbarui oleh Administrator.';
+    const statusLabels = {
+      new: 'Baru',
+      processing: 'Diproses',
+      done: 'Selesai',
+      rejected: 'Ditolak',
+    };
+
+    const updatedStatus = (typeof newStatusData === 'object' ? newStatusData?.status : newStatusData) || 'new';
+    const note = (typeof newStatusData === 'object' ? newStatusData?.note : '') || 'Status diperbarui oleh Administrator.';
+    const displayLabel = statusLabels[updatedStatus.toLowerCase()] || updatedStatus;
 
     setReport((prev) => {
       if (!prev) return prev;
       const newTimelineItem = {
         id: Date.now(),
         status: updatedStatus,
-        title: `Status Diubah Menjadi ${updatedStatus.toUpperCase()}`,
+        title: `Status Diubah Menjadi: ${displayLabel}`,
         description: note,
         timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB (Hari ini)',
         actor: user?.name || 'Administrator'
@@ -195,8 +203,8 @@ const ReportDetailPage = () => {
       };
     });
 
-    setStatusSuccessMessage(`Status audit laporan berhasil diperbarui menjadi "${updatedStatus.toUpperCase()}".`);
-    setTimeout(() => setStatusSuccessMessage(''), 4000);
+    // Notifikasi top banner statusSuccessMessage dihapus sesuai instruksi user
+    fetchAllHistory();
   };
 
   // Filtered History Reports Table

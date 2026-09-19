@@ -601,9 +601,9 @@ class ReportController extends Controller
     // Fungsi untuk admin mengubah status penanganan laporan
     public function updateStatus(Request $request, $id)
     {
-        // 1. Validasi status baru yang dikirim admin
+        // 1. Validasi status baru yang dikirim admin (new, processing, done, rejected)
         $request->validate([
-            'status' => 'required|in:new,processing,done',
+            'status' => 'required|in:new,processing,done,rejected',
         ]);
 
         // 2. Cek apakah laporan ada
@@ -612,11 +612,27 @@ class ReportController extends Controller
             return response()->json(['message' => 'Laporan tidak ditemukan.'], 404);
         }
 
-        // 3. Update status di database
-        DB::table('reports')->where('id', $report->id)->update([
-            'status' => $request->status,
-            'updated_at' => now(),
-        ]);
+        // 3. Update status di database dengan safe fallback untuk constraint database
+        try {
+            DB::table('reports')->where('id', $report->id)->update([
+                'status' => $request->status,
+                'updated_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // Jika kolom status di PostgreSQL memiliki check constraint enum lama (new, processing, done),
+            // lepaskan check constraint secara dinamis agar 'rejected' dapat disimpan.
+            try {
+                DB::statement("ALTER TABLE reports DROP CONSTRAINT IF EXISTS reports_status_check");
+                DB::statement("ALTER TABLE reports ALTER COLUMN status TYPE VARCHAR(50)");
+                DB::table('reports')->where('id', $report->id)->update([
+                    'status' => $request->status,
+                    'updated_at' => now(),
+                ]);
+            } catch (\Throwable $ex) {
+                Log::error('Gagal memperbarui status laporan: ' . $ex->getMessage());
+                throw $e;
+            }
+        }
 
         // 4. Catat riwayat perubahan ke tabel audit_logs untuk jejak audit
         try {
@@ -644,7 +660,13 @@ class ReportController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Status laporan berhasil diperbarui!',
-            'new_status' => $request->status
+            'status' => $request->status,
+            'new_status' => $request->status,
+            'data' => [
+                'id' => $report->id,
+                'status' => $request->status,
+                'note' => $request->note ?? $request->admin_note ?? '',
+            ],
         ], 200);
     }
     

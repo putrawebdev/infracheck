@@ -102,7 +102,12 @@ const StatusUpdater = ({
       const res = await updateReportStatus(reportId, payload);
       setSuccess(true);
       if (onStatusUpdated) {
-        onStatusUpdated(res?.data || res || { status: selectedStatus, note: adminNote });
+        const returnedStatus = res?.data?.status || res?.status || selectedStatus;
+        onStatusUpdated({
+          status: returnedStatus,
+          note: adminNote.trim(),
+          ...(res?.data || {}),
+        });
       }
       setTimeout(() => setSuccess(false), 3500);
     } catch (err) {
@@ -112,6 +117,9 @@ const StatusUpdater = ({
       setIsLoading(false);
     }
   };
+
+  const currentOption = statusOptions.find((opt) => opt.value === selectedStatus);
+  const currentLabel = currentOption ? currentOption.label : selectedStatus;
 
   return (
     <div id={id} className={`flex flex-col justify-between ${className}`}>
@@ -128,7 +136,9 @@ const StatusUpdater = ({
         {success && (
           <div className="p-3 bg-[#00391c]/90 border border-emerald-500/60 rounded-xl text-xs text-emerald-200 flex items-center gap-2.5 animate-in fade-in">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="flex-1 font-medium">Status audit berhasil diperbarui!</span>
+            <span className="flex-1 font-medium">
+              Status audit berhasil diperbarui menjadi &quot;{currentLabel}&quot;!
+            </span>
           </div>
         )}
 

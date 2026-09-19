@@ -143,14 +143,31 @@ export const getReportById = async (id) => {
 };
 
 export const updateReportStatus = async (id, statusData) => {
+  const targetStatus = (typeof statusData === 'object' ? statusData.status : statusData) || 'new';
+  const targetNote = (typeof statusData === 'object' ? (statusData.note || statusData.admin_note) : '') || '';
+
   try {
     const response = await api.patch(`/reports/${id}/status`, statusData);
     if (response?.data) {
-      const item = response.data.data || response.data;
+      const respData = response.data;
+      const resolvedStatus =
+        respData.status ||
+        respData.new_status ||
+        respData.data?.status ||
+        targetStatus;
+
+      const rawItem = typeof respData.data === 'object' && respData.data !== null ? respData.data : respData;
+      const itemToNormalize = {
+        ...rawItem,
+        id: rawItem.id || id,
+        status: resolvedStatus,
+        note: targetNote,
+      };
+
       return {
         success: true,
-        data: normalizeReport(item),
-        message: response.data.message || 'Status laporan berhasil diperbarui',
+        data: normalizeReport(itemToNormalize),
+        message: respData.message || 'Status laporan berhasil diperbarui',
       };
     }
   } catch (error) {
@@ -158,8 +175,8 @@ export const updateReportStatus = async (id, statusData) => {
   }
 
   // Local fallback mutation
-  const newStatus = statusData.status || 'processing';
-  const note = statusData.admin_note || statusData.note || '';
+  const newStatus = targetStatus;
+  const note = targetNote;
 
   MOCK_REPORTS_LIST = MOCK_REPORTS_LIST.map((r) => {
     if (String(r.id) === String(id)) {
@@ -188,7 +205,7 @@ export const updateReportStatus = async (id, statusData) => {
   const updatedReport = MOCK_REPORTS_LIST.find((r) => String(r.id) === String(id));
   return {
     success: true,
-    data: updatedReport ? normalizeReport(updatedReport) : { id, status: newStatus },
+    data: updatedReport ? normalizeReport(updatedReport) : { id, status: newStatus, note },
     message: 'Status laporan berhasil diperbarui',
   };
 };
