@@ -1210,10 +1210,9 @@ const MapPage = () => {
               confirmations: 1,
               reporter_name: newReportData.reporter_name.trim() || 'Warga Pelapor',
               description: newReportData.description.trim() || 'Laporan kerusakan baru dari warga.',
-              images: [
-                newReportData.image_url.trim() || 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=1000&q=80',
-                'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1000&q=80'
-              ],
+              images: newReportData.image_url.trim()
+                ? [newReportData.image_url.trim()]
+                : ['https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=1000&q=80'],
               map_x: 45 + Math.floor(Math.random() * 20),
               map_y: 40 + Math.floor(Math.random() * 20),
               created_at: new Date().toISOString(),

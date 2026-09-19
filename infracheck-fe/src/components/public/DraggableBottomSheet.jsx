@@ -78,7 +78,9 @@ const DraggableBottomSheet = ({
       list.push(report.photo_url);
     }
     const filtered = list.filter(u => typeof u === 'string' && u.trim() && !u.includes('dummyimage.com'));
-    return Array.from(new Set(filtered));
+    const unique = Array.from(new Set(filtered));
+    const realPhotos = unique.filter(u => !u.includes('unsplash.com'));
+    return realPhotos.length > 0 ? realPhotos : unique;
   })();
 
   const baseImages = rawImages.length > 0

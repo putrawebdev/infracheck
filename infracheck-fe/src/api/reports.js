@@ -65,14 +65,20 @@ export const normalizeReport = (r) => {
     ? r.images.map(formatImageUrl).filter(Boolean)
     : [];
 
-  const singlePhoto = formatImageUrl(r.photo_url);
-
   let combinedImages = [
     ...rawImages,
     ...photoUrlsFromPhotos,
     ...(singlePhoto ? [singlePhoto] : []),
   ];
   combinedImages = Array.from(new Set(combinedImages)).filter(Boolean);
+
+  // If real photos exist, discard any Unsplash or dummy placeholder URLs
+  const realPhotos = combinedImages.filter(
+    (u) => typeof u === 'string' && !u.includes('unsplash.com') && !u.includes('dummyimage.com')
+  );
+  if (realPhotos.length > 0) {
+    combinedImages = realPhotos;
+  }
 
   const fallbackDefault = 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=1000&q=80';
   const photoUrl = combinedImages.length > 0 ? combinedImages[0] : fallbackDefault;

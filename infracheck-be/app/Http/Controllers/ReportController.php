@@ -41,15 +41,22 @@ class ReportController extends Controller
                 }
             }
 
-            // Clean primary photo_url if dummy
+            // Clean primary photo_url if dummy or unsplash placeholder
+            $realPhotos = array_values(array_filter($photoUrls, fn($u) => !str_contains($u, 'unsplash.com') && !str_contains($u, 'dummyimage.com')));
+
             $primaryPhoto = $report->photo_url;
-            if (empty($primaryPhoto) || str_contains($primaryPhoto, 'dummyimage.com')) {
-                $primaryPhoto = !empty($photoUrls)
-                    ? $photoUrls[0]
-                    : 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=1000&q=80';
+            if (empty($primaryPhoto) || str_contains($primaryPhoto, 'dummyimage.com') || str_contains($primaryPhoto, 'unsplash.com')) {
+                $primaryPhoto = !empty($realPhotos)
+                    ? $realPhotos[0]
+                    : (!empty($photoUrls) ? $photoUrls[0] : 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=1000&q=80');
             }
 
-            if (empty($photoUrls)) {
+            if (!empty($realPhotos)) {
+                $photoUrls = $realPhotos;
+                if (!in_array($primaryPhoto, $photoUrls)) {
+                    array_unshift($photoUrls, $primaryPhoto);
+                }
+            } elseif (empty($photoUrls)) {
                 $photoUrls = [$primaryPhoto];
             } elseif (!in_array($primaryPhoto, $photoUrls)) {
                 array_unshift($photoUrls, $primaryPhoto);
@@ -317,14 +324,21 @@ class ReportController extends Controller
             }
         }
 
+        $realPhotos = array_values(array_filter($photoUrls, fn($u) => !str_contains($u, 'unsplash.com') && !str_contains($u, 'dummyimage.com')));
+
         $primaryPhoto = $report->photo_url;
-        if (empty($primaryPhoto) || str_contains($primaryPhoto, 'dummyimage.com')) {
-            $primaryPhoto = !empty($photoUrls)
-                ? $photoUrls[0]
-                : 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=1000&q=80';
+        if (empty($primaryPhoto) || str_contains($primaryPhoto, 'dummyimage.com') || str_contains($primaryPhoto, 'unsplash.com')) {
+            $primaryPhoto = !empty($realPhotos)
+                ? $realPhotos[0]
+                : (!empty($photoUrls) ? $photoUrls[0] : 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=1000&q=80');
         }
 
-        if (empty($photoUrls)) {
+        if (!empty($realPhotos)) {
+            $photoUrls = $realPhotos;
+            if (!in_array($primaryPhoto, $photoUrls)) {
+                array_unshift($photoUrls, $primaryPhoto);
+            }
+        } elseif (empty($photoUrls)) {
             $photoUrls = [$primaryPhoto];
         } elseif (!in_array($primaryPhoto, $photoUrls)) {
             array_unshift($photoUrls, $primaryPhoto);
@@ -387,14 +401,21 @@ class ReportController extends Controller
             }
         }
 
+        $realPhotos = array_values(array_filter($photoUrls, fn($u) => !str_contains($u, 'unsplash.com') && !str_contains($u, 'dummyimage.com')));
+
         $primaryPhoto = $report->photo_url;
-        if (empty($primaryPhoto) || str_contains($primaryPhoto, 'dummyimage.com')) {
-            $primaryPhoto = !empty($photoUrls)
-                ? $photoUrls[0]
-                : 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=1000&q=80';
+        if (empty($primaryPhoto) || str_contains($primaryPhoto, 'dummyimage.com') || str_contains($primaryPhoto, 'unsplash.com')) {
+            $primaryPhoto = !empty($realPhotos)
+                ? $realPhotos[0]
+                : (!empty($photoUrls) ? $photoUrls[0] : 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=1000&q=80');
         }
 
-        if (empty($photoUrls)) {
+        if (!empty($realPhotos)) {
+            $photoUrls = $realPhotos;
+            if (!in_array($primaryPhoto, $photoUrls)) {
+                array_unshift($photoUrls, $primaryPhoto);
+            }
+        } elseif (empty($photoUrls)) {
             $photoUrls = [$primaryPhoto];
         } elseif (!in_array($primaryPhoto, $photoUrls)) {
             array_unshift($photoUrls, $primaryPhoto);
@@ -559,8 +580,8 @@ class ReportController extends Controller
             'updated_at' => now(),
         ]);
 
-        // If report's main photo was a dummy placeholder, update it with this real photo
-        if (empty($report->photo_url) || str_contains($report->photo_url, 'dummyimage.com')) {
+        // If report's main photo was a dummy or unsplash placeholder, update it with this real photo
+        if (empty($report->photo_url) || str_contains($report->photo_url, 'dummyimage.com') || str_contains($report->photo_url, 'unsplash.com')) {
             DB::table('reports')->where('id', $report->id)->update([
                 'photo_url' => $photoUrl,
                 'updated_at' => now(),
@@ -637,57 +658,70 @@ class ReportController extends Controller
             return null;
         }
 
+        // Already a data URI
+        if (str_starts_with($url, 'data:image/')) {
+            return $url;
+        }
+
         try {
             $rawContent = null;
-            $extension = null;
+            $parsedPath = parse_url($url, PHP_URL_PATH) ?: $url;
+            $filename = basename($parsedPath);
+            $relativePath = 'reports/' . $filename;
 
-            // 1. Local file in storage
-            if (str_contains($url, '/storage/') || str_starts_with($url, 'reports/') || str_starts_with($url, '/reports/')) {
-                $parsedPath = parse_url($url, PHP_URL_PATH);
-                $filename = basename($parsedPath);
+            // 1. Try Laravel Storage Disk 'public'
+            try {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($relativePath)) {
+                    $rawContent = \Illuminate\Support\Facades\Storage::disk('public')->get($relativePath);
+                } elseif (\Illuminate\Support\Facades\Storage::disk('public')->exists($filename)) {
+                    $rawContent = \Illuminate\Support\Facades\Storage::disk('public')->get($filename);
+                }
+            } catch (\Throwable) {}
 
-                $allowedDirs = array_filter([
-                    realpath(storage_path('app/public/reports')),
-                    realpath(public_path('storage/reports')),
-                    realpath(storage_path('app/public')),
-                    realpath(public_path('storage')),
+            // 2. Direct filesystem lookup candidates
+            if (empty($rawContent)) {
+                $candidates = array_filter([
+                    storage_path('app/public/reports/' . $filename),
+                    public_path('storage/reports/' . $filename),
+                    storage_path('app/public/' . $filename),
+                    public_path('storage/' . $filename),
+                    public_path(ltrim($parsedPath, '/')),
                 ]);
 
-                foreach ($allowedDirs as $allowedDir) {
-                    $candidate = realpath($allowedDir . DIRECTORY_SEPARATOR . $filename);
-                    if ($candidate && str_starts_with($candidate, $allowedDir) && file_exists($candidate) && is_file($candidate)) {
+                foreach ($candidates as $candidate) {
+                    if (@file_exists($candidate) && @is_file($candidate)) {
                         $rawContent = @file_get_contents($candidate);
-                        $extension = strtolower(pathinfo($candidate, PATHINFO_EXTENSION));
-                        break;
+                        if (!empty($rawContent)) {
+                            break;
+                        }
                     }
                 }
             }
-            // 2. Remote URL (Cloudinary, Unsplash, etc.)
-            elseif (filter_var($url, FILTER_VALIDATE_URL)) {
-                $parsed = parse_url($url);
-                $scheme = strtolower($parsed['scheme'] ?? '');
-                $host = strtolower($parsed['host'] ?? '');
 
-                if ($scheme === 'https' && !in_array($host, ['localhost', '127.0.0.1'], true)) {
+            // 3. Fallback: Fetch via HTTP (supports Cloudinary, external URLs, and local app URL)
+            if (empty($rawContent)) {
+                $fetchUrl = $url;
+                if (!filter_var($fetchUrl, FILTER_VALIDATE_URL)) {
+                    $base = env('APP_URL') ?: (request() ? request()->getSchemeAndHttpHost() : 'https://infracheck-production.up.railway.app');
+                    $fetchUrl = rtrim($base, '/') . '/' . ltrim($parsedPath, '/');
+                }
+
+                if (filter_var($fetchUrl, FILTER_VALIDATE_URL)) {
                     try {
                         $response = \Illuminate\Support\Facades\Http::timeout(6)
-                            ->withHeaders(['User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) InfraCheck/1.0'])
-                            ->get($url);
+                            ->withoutVerifying()
+                            ->withHeaders(['User-Agent' => 'Mozilla/5.0 InfraCheck/1.0'])
+                            ->get($fetchUrl);
                         if ($response->successful()) {
                             $rawContent = $response->body();
                         }
                     } catch (\Throwable) {
                         $ctx = stream_context_create([
-                            'http' => [
-                                'timeout' => 5,
-                                'ignore_errors' => true,
-                                'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) InfraCheck/1.0\r\n"
-                            ],
+                            'http' => ['timeout' => 5, 'ignore_errors' => true, 'header' => "User-Agent: Mozilla/5.0 InfraCheck/1.0\r\n"],
                             'ssl'  => ['verify_peer' => false, 'verify_peer_name' => false],
                         ]);
-                        $rawContent = @file_get_contents($url, false, $ctx);
+                        $rawContent = @file_get_contents($fetchUrl, false, $ctx);
                     }
-                    $extension = strtolower(pathinfo($parsed['path'] ?? '', PATHINFO_EXTENSION));
                 }
             }
 
@@ -695,9 +729,20 @@ class ReportController extends Controller
                 return null;
             }
 
-            // Downscale and convert to JPEG base64 via GD to prevent DomPDF memory exhaustion
+            // 4. Decode with GD (handles both standard formats and WebP)
             if (function_exists('imagecreatefromstring') && function_exists('imagejpeg')) {
                 $gdImage = @imagecreatefromstring($rawContent);
+
+                // If imagecreatefromstring failed (common for WebP on some GD versions), try imagecreatefromwebp
+                if (!$gdImage && function_exists('imagecreatefromwebp')) {
+                    $tmpFile = tempnam(sys_get_temp_dir(), 'pdf_img_');
+                    if ($tmpFile) {
+                        file_put_contents($tmpFile, $rawContent);
+                        $gdImage = @imagecreatefromwebp($tmpFile);
+                        @unlink($tmpFile);
+                    }
+                }
+
                 if ($gdImage) {
                     $origWidth = imagesx($gdImage);
                     $origHeight = imagesy($gdImage);
@@ -763,13 +808,21 @@ class ReportController extends Controller
             // 2. Ambil seluruh foto kontribusi tambahan dari warga
             $photos = DB::table('report_photos')->where('report_id', $report->id)->get();
 
-            // 3. Konversi gambar ke base64 data URI agar DomPDF dapat me-render secara aman & cepat tanpa error WebP/Remote
-            $mainPhotoDataUri = $this->convertImageToBase64DataUri($report->photo_url);
+            // 3. Tentukan foto utama
+            $mainPhotoUrl = $report->photo_url;
+            if ((empty($mainPhotoUrl) || str_contains($mainPhotoUrl, 'unsplash.com') || str_contains($mainPhotoUrl, 'dummyimage.com')) && $photos->isNotEmpty()) {
+                $mainPhotoUrl = $photos->first()->photo_url;
+            }
+
+            $mainPhotoDataUri = $this->convertImageToBase64DataUri($mainPhotoUrl);
 
             $sanitizedPhotos = [];
             foreach ($photos as $photo) {
                 // Hindari duplikasi foto utama
-                if (!empty($photo->photo_url) && $photo->photo_url === $report->photo_url) {
+                if (!empty($photo->photo_url) && (
+                    $photo->photo_url === $mainPhotoUrl ||
+                    basename($photo->photo_url) === basename($mainPhotoUrl)
+                )) {
                     continue;
                 }
                 $dataUri = $this->convertImageToBase64DataUri($photo->photo_url ?? null);
@@ -779,6 +832,12 @@ class ReportController extends Controller
                         'caption' => $photo->caption ?? 'Bukti Tambahan Warga',
                     ];
                 }
+            }
+
+            // Jika main photo gagal di-convert tapi ada foto di sanitizedPhotos, jadikan yang pertama sebagai main photo
+            if (empty($mainPhotoDataUri) && !empty($sanitizedPhotos)) {
+                $first = array_shift($sanitizedPhotos);
+                $mainPhotoDataUri = $first['src'];
             }
 
             // 4. Siapkan data yang akan dikirim ke tampilan PDF

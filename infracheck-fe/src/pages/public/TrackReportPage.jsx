@@ -98,8 +98,10 @@ const TrackReportPage = () => {
     }
     const filtered = list.filter(u => typeof u === 'string' && u.trim() && !u.includes('dummyimage.com'));
     const unique = Array.from(new Set(filtered));
-    return unique.length > 0
-      ? unique
+    const realPhotos = unique.filter(u => !u.includes('unsplash.com'));
+    const chosen = realPhotos.length > 0 ? realPhotos : unique;
+    return chosen.length > 0
+      ? chosen
       : ['https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80'];
   }, [trackedReport]);
 
